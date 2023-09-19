@@ -10,7 +10,7 @@
     "maintainers": ["renatonlima"],
     "website": "https://github.com/OCA/l10n-brazil",
     "development_status": "Production/Stable",
-    "version": "14.0.17.1.0",
+    "version": "14.0.19.2.0",
     "depends": [
         "product",
         "l10n_br_base",
@@ -24,6 +24,7 @@
         "data/l10n_br_fiscal_email_template.xml",
         "data/l10n_br_fiscal_data.xml",
         "data/uom_data.xml",
+        "data/uom_alternative_data.xml",
         "data/product_data.xml",
         "data/partner_profile_data.xml",
         "data/res_partner_data.xml",
@@ -82,8 +83,6 @@
         "views/uom_uom.xml",
         "views/invalidate_number_view.xml",
         "views/city_taxation_code.xml",
-        #        "views/mdfe/mdfe_views.xml",
-        #        "views/dfe/dfe_views.xml",
         "views/operation_dashboard_view.xml",
         "views/document_event_view.xml",
         # Reports

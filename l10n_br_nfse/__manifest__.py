@@ -5,16 +5,16 @@
     "name": "NFS-e",
     "summary": """
         NFS-e""",
-    "version": "14.0.1.15.1",
+    "version": "14.0.1.15.3",
     "license": "AGPL-3",
     "author": "KMEE, Odoo Community Association (OCA)",
     "maintainers": ["gabrielcardoso21", "mileo", "luismalta", "marcelsavegnago"],
     "website": "https://github.com/OCA/l10n-brazil",
     "external_dependencies": {
         "python": [
-            "erpbrasil.edoc",
+            "erpbrasil.edoc>=2.5.2",
             "erpbrasil.assinatura>=1.7.0",
-            "erpbrasil.transmissao",
+            "erpbrasil.transmissao>=1.1.0",
             "erpbrasil.base>=2.3.0",
         ],
     },

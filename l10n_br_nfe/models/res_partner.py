@@ -101,6 +101,7 @@ class ResPartner(spec_models.SpecModel):
     nfe40_choice6 = fields.Selection(
         selection=[("nfe40_CNPJ", "CNPJ"), ("nfe40_CPF", "CPF")],
         string="CNPJ/CPF do Emitente",
+        compute="_compute_nfe_data",
     )
 
     # nfe.40.tendereco
@@ -143,6 +144,7 @@ class ResPartner(spec_models.SpecModel):
     nfe40_choice2 = fields.Selection(
         selection=[("nfe40_CNPJ", "CNPJ"), ("nfe40_CPF", "CPF")],
         string="CNPJ/CPF do Parceiro",
+        compute="_compute_nfe_data",
     )
 
     nfe40_choice7 = fields.Selection(
@@ -160,6 +162,7 @@ class ResPartner(spec_models.SpecModel):
     nfe40_choice8 = fields.Selection(
         selection=[("nfe40_CNPJ", "CNPJ"), ("nfe40_CPF", "CPF")],
         string="CNPJ/CPF do Parceiro Autorizado",
+        compute="_compute_nfe_data",
     )
 
     # nfe.40.transporta
@@ -169,15 +172,29 @@ class ResPartner(spec_models.SpecModel):
             ("nfe40_CPF", "CPF"),
         ],
         string="CNPJ or CPF",
+        compute="_compute_nfe_data",
+    )
+
+    is_anonymous_consumer = fields.Boolean(
+        string="Is Anonymous Consumer",
+        help="Indicates that the partner is an anonymous consumer",
     )
 
     def _compute_nfe40_xEnder(self):
         for rec in self:
-            rec.nfe40_xEnder = ", ".join(
-                [i for i in [rec.street, rec.street_number] if i]
-            )
+            # Campos do endereço são separados no Emitente e Destinatario
+            # porém no caso da Transportadadora o campo do endereço é maior
+            # porém sem os detalhes como complemento e bairro, mas
+            # operacionalmente são importantes, por isso caso existam o
+            # Complemento e o Bairro é melhor agrega-los.
+            # campo street retorna "street_name, street_number"
+            endereco = rec.street
             if rec.street2:
-                rec.nfe40_xEnder = " - ".join((rec.nfe40_xEnder, rec.street2))
+                endereco += " - " + rec.street2
+            if rec.district:
+                endereco += " - " + rec.district
+
+            rec.nfe40_xEnder = endereco
 
     def _compute_nfe40_enderDest(self):
         for rec in self:
@@ -191,6 +208,7 @@ class ResPartner(spec_models.SpecModel):
             if cnpj_cpf:
                 if rec.country_id.code != "BR":
                     rec.nfe40_choice7 = "nfe40_idEstrangeiro"
+                    rec.nfe40_choice2 = False
                 elif rec.is_company:
                     rec.nfe40_choice2 = "nfe40_CNPJ"
                     rec.nfe40_choice6 = "nfe40_CNPJ"
@@ -207,6 +225,14 @@ class ResPartner(spec_models.SpecModel):
                     rec.nfe40_choice19 = "nfe40_CPF"
                     rec.nfe40_CPF = cnpj_cpf
                     rec.nfe40_CNPJ = None
+            else:
+                rec.nfe40_choice2 = False
+                rec.nfe40_choice6 = False
+                rec.nfe40_choice7 = False
+                rec.nfe40_choice8 = False
+                rec.nfe40_choice19 = False
+                rec.nfe40_CNPJ = ""
+                rec.nfe40_CPF = ""
 
             if rec.inscr_est:
                 rec.nfe40_IE = punctuation_rm(rec.inscr_est)
@@ -260,6 +286,36 @@ class ResPartner(spec_models.SpecModel):
         for rec in self:
             if rec.nfe40_fone:
                 rec.phone = rec.nfe40_fone
+
+    @api.model
+    def match_or_create_m2o(self, rec_dict, parent_dict, model=None):
+        if model is not None and model != self:
+            return False
+
+        if parent_dict.get("nfe40_CNPJ", False):
+            rec_dict["cnpj_cpf"] = parent_dict["nfe40_CNPJ"]
+
+        if rec_dict.get("nfe40_CNPJ", False):
+            rec_dict["cnpj_cpf"] = rec_dict["nfe40_CNPJ"]
+
+        if rec_dict.get("cnpj_cpf", False):
+            domain_cnpj = [
+                "|",
+                ("cnpj_cpf", "=", rec_dict["cnpj_cpf"]),
+                ("cnpj_cpf", "=", cnpj_cpf.formata(rec_dict["cnpj_cpf"])),
+            ]
+            match = self.search(domain_cnpj, limit=1)
+            if match:
+                return match.id
+
+        vals = self._prepare_import_dict(
+            rec_dict, model=model, parent_dict=parent_dict, defaults_model=model
+        )
+        if self._context.get("dry_run", False):
+            rec_id = self.new(vals).id
+        else:
+            rec_id = self.with_context(parent_dict=parent_dict).create(vals).id
+        return rec_id
 
     def _export_field(self, xsd_field, class_obj, member_spec, export_value=None):
         # Se a NF-e é emitida em homologação altera o nome do destinatário
@@ -316,15 +372,26 @@ class ResPartner(spec_models.SpecModel):
     )
     def _compute_nfe40_ender(self):
         for rec in self:
-            rec.nfe40_xLgr = rec.street_name
-            rec.nfe40_nro = rec.street_number
-            rec.nfe40_xCpl = rec.street2
-            rec.nfe40_xBairro = rec.district
-            rec.nfe40_cMun = rec.city_id.ibge_code
-            rec.nfe40_xMun = rec.city_id.name
-            rec.nfe40_UF = rec.state_id.code
-            rec.nfe40_cPais = rec.country_id.bc_code
-            rec.nfe40_xPais = rec.country_id.name
+            if not rec.is_anonymous_consumer:
+                rec.nfe40_xLgr = rec.street_name
+                rec.nfe40_nro = rec.street_number
+                rec.nfe40_xCpl = rec.street2
+                rec.nfe40_xBairro = rec.district
+                rec.nfe40_cMun = rec.city_id.ibge_code
+                rec.nfe40_xMun = rec.city_id.name
+                rec.nfe40_UF = rec.state_id.code
+                rec.nfe40_cPais = rec.country_id.bc_code
+                rec.nfe40_xPais = rec.country_id.name
+            else:
+                rec.nfe40_xLgr = None
+                rec.nfe40_nro = None
+                rec.nfe40_xCpl = None
+                rec.nfe40_xBairro = None
+                rec.nfe40_cMun = None
+                rec.nfe40_xMun = None
+                rec.nfe40_UF = None
+                rec.nfe40_cPais = None
+                rec.nfe40_xPais = None
 
     def _inverse_nfe40_ender(self):
         for rec in self:
