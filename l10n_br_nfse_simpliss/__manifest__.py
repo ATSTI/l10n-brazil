@@ -4,7 +4,7 @@
 {
     "name": "NFS-e (Simpliss)",
     "summary": """
-        NFS-e (Ginfes)""",
+        NFS-e (Simpliss)""",
     "version": "14.0.1.0.2",
     "license": "AGPL-3",
     "author": "KMEE, Odoo Community Association (OCA)",
