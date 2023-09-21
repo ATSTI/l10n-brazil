@@ -10,6 +10,6 @@ class ResCompany(models.Model):
 
     provedor_nfse = fields.Selection(
         selection_add=[
-            ("ginfes", "Ginfes"),
+            ("simpliss", "Simpliss"),
         ]
     )

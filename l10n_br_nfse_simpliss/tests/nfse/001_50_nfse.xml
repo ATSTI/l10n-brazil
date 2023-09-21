@@ -1,12 +1,12 @@
 <EnviarLoteRpsEnvio
-    xmlns="http://www.ginfes.com.br/servico_enviar_lote_rps_envio_v03.xsd"
-    xmlns:tipos="http://www.ginfes.com.br/tipos_v03.xsd"
+    xmlns="http://www.simpliss.com.br/servico_enviar_lote_rps_envio_v03.xsd"
+    xmlns:tipos="http://www.simpliss.com.br/tipos_v03.xsd"
 >
     <LoteRps>
         <tipos:Cnpj>59594315000157</tipos:Cnpj>
         <tipos:InscricaoMunicipal>35172</tipos:InscricaoMunicipal>
         <tipos:QuantidadeRps>1</tipos:QuantidadeRps>
-        <ListaRps xmlns="http://www.ginfes.com.br/tipos_v03.xsd">
+        <ListaRps xmlns="http://www.simpliss.com.br/tipos_v03.xsd">
             <Rps>
                 <InfRps Id="rps50">
                     <IdentificacaoRps>

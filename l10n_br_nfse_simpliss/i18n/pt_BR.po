@@ -1,6 +1,6 @@
 # Translation of Odoo Server.
 # This file contains the translation of the following modules:
-#	* l10n_br_nfse_ginfes
+#	* l10n_br_nfse_simpliss
 #
 msgid ""
 msgstr ""
@@ -16,46 +16,46 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
 "X-Generator: Weblate 4.3.2\n"
 
-#. module: l10n_br_nfse_ginfes
-#: model:ir.model,name:l10n_br_nfse_ginfes.model_res_company
+#. module: l10n_br_nfse_simpliss
+#: model:ir.model,name:l10n_br_nfse_simpliss.model_res_company
 msgid "Companies"
 msgstr "Empresas"
 
-#. module: l10n_br_nfse_ginfes
-#: model:ir.model,name:l10n_br_nfse_ginfes.model_l10n_br_fiscal_document
+#. module: l10n_br_nfse_simpliss
+#: model:ir.model,name:l10n_br_nfse_simpliss.model_l10n_br_fiscal_document
 msgid "Fiscal Document"
 msgstr "Documento Fiscal"
 
-#. module: l10n_br_nfse_ginfes
+#. module: l10n_br_nfse_simpliss
 #: selection:res.company,provedor_nfse:0
-msgid "Ginfes"
-msgstr "Ginfes"
+msgid "Simpliss"
+msgstr "Simpliss"
 
-#. module: l10n_br_nfse_ginfes
-#: code:addons/l10n_br_nfse_ginfes/models/document.py:307
+#. module: l10n_br_nfse_simpliss
+#: code:addons/l10n_br_nfse_simpliss/models/document.py:307
 #, python-format
 msgid "Lote ainda não processado"
 msgstr "Lote ainda não processado"
 
-#. module: l10n_br_nfse_ginfes
-#: model:ir.model.fields,field_description:l10n_br_nfse_ginfes.field_res_company__provedor_nfse
+#. module: l10n_br_nfse_simpliss
+#: model:ir.model.fields,field_description:l10n_br_nfse_simpliss.field_res_company__provedor_nfse
 msgid "NFSe Provider"
 msgstr "Provedor NFSe"
 
-#. module: l10n_br_nfse_ginfes
-#: code:addons/l10n_br_nfse_ginfes/models/document.py:304
+#. module: l10n_br_nfse_simpliss
+#: code:addons/l10n_br_nfse_simpliss/models/document.py:304
 #, python-format
 msgid "Não Recebido"
 msgstr "Não Recebido"
 
-#. module: l10n_br_nfse_ginfes
-#: code:addons/l10n_br_nfse_ginfes/models/document.py:310
+#. module: l10n_br_nfse_simpliss
+#: code:addons/l10n_br_nfse_simpliss/models/document.py:310
 #, python-format
 msgid "Procesado com Erro"
 msgstr "Procesado com Erro"
 
-#. module: l10n_br_nfse_ginfes
-#: code:addons/l10n_br_nfse_ginfes/models/document.py:313
+#. module: l10n_br_nfse_simpliss
+#: code:addons/l10n_br_nfse_simpliss/models/document.py:313
 #, python-format
 msgid "Procesado com Sucesso"
 msgstr "Procesado com Sucesso"

@@ -14,22 +14,22 @@ from odoo.addons.l10n_br_nfse.tests.test_fiscal_document_nfse_common import (
     TestFiscalDocumentNFSeCommon,
 )
 
-from ... import l10n_br_nfse_ginfes
+from ... import l10n_br_nfse_simpliss
 
 _logger = logging.getLogger(__name__)
 
 
-class TestFiscalDocumentNFSeGinfes(TestFiscalDocumentNFSeCommon):
+class TestFiscalDocumentNFSeSimpliss(TestFiscalDocumentNFSeCommon):
     def setUp(self):
-        super(TestFiscalDocumentNFSeGinfes, self).setUp()
+        super(TestFiscalDocumentNFSeSimpliss, self).setUp()
 
-        self.company.provedor_nfse = "ginfes"
+        self.company.provedor_nfse = "simpliss"
 
-    def test_nfse_ginfes(self):
+    def test_nfse_simpliss(self):
         """Test NFS-e same state."""
 
         xml_path = os.path.join(
-            l10n_br_nfse_ginfes.__path__[0], "tests", "nfse", "001_50_nfse.xml"
+            l10n_br_nfse_simpliss.__path__[0], "tests", "nfse", "001_50_nfse.xml"
         )
 
         self.nfse_same_state._onchange_document_serie_id()

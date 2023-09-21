@@ -30,7 +30,7 @@ from odoo.addons.l10n_br_fiscal.constants.fiscal import (
     SITUACAO_EDOC_REJEITADA,
 )
 
-from ..constants.ginfes import CONSULTAR_SITUACAO_LOTE_RPS, RECEPCIONAR_LOTE_RPS
+from ..constants.simpliss import CONSULTAR_SITUACAO_LOTE_RPS, RECEPCIONAR_LOTE_RPS
 
 
 def filter_oca_nfse(record):
@@ -41,8 +41,8 @@ def filter_oca_nfse(record):
     return False
 
 
-def filter_ginfes(record):
-    if record.company_id.provedor_nfse == "ginfes":
+def filter_simpliss(record):
+    if record.company_id.provedor_nfse == "simpliss":
         return True
     return False
 
@@ -53,11 +53,11 @@ class Document(models.Model):
 
     def _serialize(self, edocs):
         edocs = super()._serialize(edocs)
-        for record in self.filtered(filter_oca_nfse).filtered(filter_ginfes):
-            edocs.append(record.serialize_nfse_ginfes())
+        for record in self.filtered(filter_oca_nfse).filtered(filter_simpliss):
+            edocs.append(record.serialize_nfse_simpliss())
         return edocs
 
-    def _serialize_ginfes_dados_servico(self):
+    def _serialize_simpliss_dados_servico(self):
         self.fiscal_line_ids.ensure_one()
         dados = self._prepare_dados_servico()
         return tcDadosServico(
@@ -124,7 +124,7 @@ class Document(models.Model):
             ),
         )
 
-    def _serialize_ginfes_dados_tomador(self):
+    def _serialize_simpliss_dados_tomador(self):
         dados = self._prepare_dados_tomador()
         return tcDadosTomador(
             IdentificacaoTomador=tcIdentificacaoTomador(
@@ -159,7 +159,7 @@ class Document(models.Model):
             or None,
         )
 
-    def _serialize_ginfes_rps(self, dados):
+    def _serialize_simpliss_rps(self, dados):
 
         return tcRps(
             InfRps=tcInfRps(
@@ -198,7 +198,7 @@ class Document(models.Model):
                 RpsSubstituido=self.convert_type_nfselib(
                     tcInfRps, "RpsSubstituido", dados["rps_substitiuido"]
                 ),
-                Servico=self._serialize_ginfes_dados_servico(),
+                Servico=self._serialize_simpliss_dados_servico(),
                 Prestador=tcIdentificacaoPrestador(
                     Cnpj=self.convert_type_nfselib(
                         tcIdentificacaoPrestador, "InscricaoMunicipal", dados["cnpj"]
@@ -209,7 +209,7 @@ class Document(models.Model):
                         dados["inscricao_municipal"],
                     ),
                 ),
-                Tomador=self._serialize_ginfes_dados_tomador(),
+                Tomador=self._serialize_simpliss_dados_tomador(),
                 IntermediarioServico=self.convert_type_nfselib(
                     tcInfRps, "IntermediarioServico", dados["intermediario_servico"]
                 ),
@@ -219,7 +219,7 @@ class Document(models.Model):
             )
         )
 
-    def _serialize_ginfes_lote_rps(self):
+    def _serialize_simpliss_lote_rps(self):
         dados = self._prepare_lote_rps()
         return tcLoteRps(
             Cnpj=self.convert_type_nfselib(tcLoteRps, "Cnpj", dados["cnpj"]),
@@ -227,15 +227,15 @@ class Document(models.Model):
                 tcLoteRps, "InscricaoMunicipal", dados["inscricao_municipal"]
             ),
             QuantidadeRps=1,
-            ListaRps=ListaRpsType(Rps=[self._serialize_ginfes_rps(dados)]),
+            ListaRps=ListaRpsType(Rps=[self._serialize_simpliss_rps(dados)]),
         )
 
-    def serialize_nfse_ginfes(self):
-        lote_rps = EnviarLoteRpsEnvio(LoteRps=self._serialize_ginfes_lote_rps())
+    def serialize_nfse_simpliss(self):
+        lote_rps = EnviarLoteRpsEnvio(LoteRps=self._serialize_simpliss_lote_rps())
         return lote_rps
 
-    def cancel_document_ginfes(self):
-        for record in self.filtered(filter_oca_nfse).filtered(filter_ginfes):
+    def cancel_document_simpliss(self):
+        for record in self.filtered(filter_oca_nfse).filtered(filter_simpliss):
             processador = record._processador_erpbrasil_nfse()
             processo = processador.cancela_documento(
                 doc_numero=int(record.document_number)
@@ -363,7 +363,7 @@ class Document(models.Model):
 
     def _eletronic_document_send(self):
         super()._eletronic_document_send()
-        for record in self.filtered(filter_oca_nfse).filtered(filter_ginfes):
+        for record in self.filtered(filter_oca_nfse).filtered(filter_simpliss):
             processador = record._processador_erpbrasil_nfse()
 
             protocolo = record.authorization_protocol
@@ -396,4 +396,4 @@ class Document(models.Model):
 
     def _exec_before_SITUACAO_EDOC_CANCELADA(self, old_state, new_state):
         super()._exec_before_SITUACAO_EDOC_CANCELADA(old_state, new_state)
-        return self.cancel_document_ginfes()
+        return self.cancel_document_simpliss()
