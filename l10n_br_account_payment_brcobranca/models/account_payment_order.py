@@ -40,6 +40,17 @@ class PaymentOrder(models.Model):
             }
         )
 
+    def _prepare_remessa_banco_brasil_240(self, remessa_values):
+        remessa_values.update(
+            {
+                "convenio": str(self.payment_mode_id.code_convetion),
+                "variacao": self.payment_mode_id.boleto_variation.zfill(3),
+                "carteira": str(self.payment_mode_id.boleto_wallet).zfill(2),
+                "digito_conta": str(self.journal_id.bank_account_id.acc_number_dig),
+                "conta_corrente": str(self.journal_id.bank_account_id.acc_number),
+            }
+        )
+
     def _prepare_remessa_caixa_240(self, remessa_values):
         remessa_values.update(
             {
