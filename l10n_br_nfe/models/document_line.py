@@ -5,7 +5,7 @@
 import sys
 from enum import Enum
 
-from nfelib.nfe.bindings.v4_0.dfe_tipos_basicos_v1_00 import Tcibs, TtribNfe
+from nfelib.nfe.bindings.v4_0.dfe_tipos_basicos_v1_00 import Tcibs, TtribNfe, Tred, Tdif
 
 from odoo import api, fields
 
@@ -132,7 +132,8 @@ class NFeLine(spec_models.StackedModel):
 
     # nfe40_cProd = fields.Char(related="product_id.default_code")
 
-    nfe40_cEAN = fields.Char(related="product_id.barcode")
+    # nfe40_cEAN = fields.Char(related="product_id.barcode")
+    nfe40_cEAN = fields.Char(default="SEM GTIN")
 
     # nfe40_xProd = fields.Char(related="name") TODO
 
@@ -165,7 +166,8 @@ class NFeLine(spec_models.StackedModel):
 
     nfe40_vProd = fields.Monetary(related="price_gross")
 
-    nfe40_cEANTrib = fields.Char(related="product_id.barcode")
+    # nfe40_cEANTrib = fields.Char(related="product_id.barcode")
+    nfe40_cEANTrib = fields.Char(default="SEM GTIN")
 
     nfe40_uTrib = fields.Char(related="uot_id.code")
 
@@ -211,165 +213,143 @@ class NFeLine(spec_models.StackedModel):
     # Framework Spec model's methods
     ################################
 
+    def _build_ibscbs_binding(self):
+        """Monta o TtribNfe com IBS/CBS/gDif/gRed. Retorna None se invalido."""
+        if not self.tax_classification_id:
+            return None
+
+        c_class_trib = (self.tax_classification_id.code or "").strip()
+        if len(c_class_trib) != 6 or not c_class_trib.isdigit():
+            return None
+
+        cst = "000"
+        if self.ibs_cst_id and self.ibs_cst_id.code:
+            cst = self.ibs_cst_id.code
+        elif self.cbs_cst_id and self.cbs_cst_id.code:
+            cst = self.cbs_cst_id.code
+
+        v_bc = self.ibs_base or self.cbs_base or self.price_gross
+
+        # IBS UF
+        p_ibs_uf_nom = self.ibs_percent or 0.0
+        p_ibs_uf_efet = (
+            p_ibs_uf_nom * (1 - self.ibs_reduction / 100.0)
+            if self.ibs_reduction else p_ibs_uf_nom
+        )
+        v_ibs_uf = round(v_bc * (p_ibs_uf_efet / 100.0), 2)
+
+        p_dif = 100.0
+        if cst in ("510", "515") and p_dif > 0:
+            g_dif_uf = Tdif(
+                pDif=f"{p_dif:.4f}",
+                vDif=f"{round(v_ibs_uf * (p_dif / 100.0), 2):.2f}",
+            )
+            v_ibs_uf_devido = round(v_ibs_uf * (1 - p_dif / 100.0), 2)
+        else:
+            g_dif_uf = None
+            v_ibs_uf_devido = v_ibs_uf
+
+        g_red_uf = (
+            Tred(
+                pRedAliq=f"{self.ibs_reduction:.4f}",
+                pAliqEfet=f"{p_ibs_uf_efet:.4f}",
+            ) if self.ibs_reduction else None
+        )
+
+        gibsuf = Tcibs.GIbsuf(
+            pIBSUF=f"{p_ibs_uf_nom:.4f}",
+            gDif=g_dif_uf,
+            gRed=g_red_uf,
+            vIBSUF=f"{v_ibs_uf_devido:.2f}",   # valor DEVIDO
+        )
+
+        # IBS Mun (zero por enquanto)
+        if cst in ("510", "515"):
+            g_dif_mun = Tdif(
+                pDif=f"{0.0:.4f}",
+                vDif=f"{0.0:.2f}",
+            )
+        else:
+            g_dif_mun = None
+
+        # IBS Mun
+        # IBS Mun
+        if cst in ("510", "515"):
+            g_dif_mun = Tdif(pDif=f"{0.0:.4f}", vDif=f"{0.0:.2f}")
+            # cClassTrib 515001 exige pRedAliq = 60%
+            p_red_mun = 60.0 if c_class_trib == "515001" else 0.0
+            g_red_mun = Tred(
+                pRedAliq=f"{p_red_mun:.4f}",      # ← 60.0000 para 515001
+                pAliqEfet=f"{0.0:.4f}",           # 0.0 * (1 - 60/100) = 0.0
+            )
+        else:
+            g_dif_mun = None
+            g_red_mun = None
+
+        gibsmun = Tcibs.GIbsmun(
+            pIBSMun=f"{0.0:.4f}",
+            gDif=g_dif_mun,
+            gRed=g_red_mun,
+            vIBSMun=f"{0.0:.2f}",
+        )
+
+        # CBS
+        p_cbs_nom = self.cbs_percent or 0.0
+        p_cbs_efet = (
+            p_cbs_nom * (1 - self.cbs_reduction / 100.0)
+            if self.cbs_reduction else p_cbs_nom
+        )
+        v_cbs = round(v_bc * (p_cbs_efet / 100.0), 2)
+
+        p_dif_cbs = 100.0
+        if cst in ("510", "515") and p_dif_cbs > 0:
+            g_dif_cbs = Tdif(
+                pDif=f"{p_dif_cbs:.4f}",
+                vDif=f"{round(v_cbs * (p_dif_cbs / 100.0), 2):.2f}",
+            )
+            v_cbs_devido = round(v_cbs * (1 - p_dif_cbs / 100.0), 2)
+        else:
+            g_dif_cbs = None
+            v_cbs_devido = v_cbs
+
+        g_red_cbs = (
+            Tred(
+                pRedAliq=f"{self.cbs_reduction:.4f}",
+                pAliqEfet=f"{p_cbs_efet:.4f}",
+            ) if self.cbs_reduction else None
+        )
+
+        gcbs = Tcibs.GCbs(
+            pCBS=f"{p_cbs_nom:.4f}",
+            gDif=g_dif_cbs,
+            gRed=g_red_cbs,
+            vCBS=f"{v_cbs_devido:.2f}",     # valor DEVIDO
+        )
+
+        v_ibs_total = round(v_ibs_uf_devido + 0.0, 2)
+
+        gibscbs = Tcibs(
+            vBC=f"{v_bc:.2f}",
+            gIBSUF=gibsuf,
+            gIBSMun=gibsmun,
+            vIBS=f"{v_ibs_total:.2f}",
+            gCBS=gcbs,
+        )
+
+        if self.tax_classification_id.rate_type == "3":
+            return TtribNfe(CST=cst, cClassTrib=c_class_trib)
+        return TtribNfe(CST=cst, cClassTrib=c_class_trib, gIBSCBS=gibscbs)
+
     def _export_field(self, xsd_field, class_obj, member_spec, export_value=None):
         """Override to handle IBSCBS field export"""
         if xsd_field == "nfe40_IBSCBS":
-            if not self.ibs_value and not self.cbs_value:
-                return False
-
-            # Get tax classification code
-            c_class_trib = "000001"
-            if self.tax_classification_id and self.tax_classification_id.code:
-                c_class_trib = self.tax_classification_id.code.zfill(6)
-
-            # Get CST code - use IBS CST if available, otherwise CBS CST
-            cst = "000"
-            if self.ibs_cst_id and self.ibs_cst_id.code:
-                cst = self.ibs_cst_id.code
-            elif self.cbs_cst_id and self.cbs_cst_id.code:
-                cst = self.cbs_cst_id.code
-
-            # Base calculation - use IBS base or CBS base, whichever is available
-            v_bc = self.ibs_base or self.cbs_base or self.price_gross
-
-            # IBS UF values - when there's only one IBS, populate IBSUF directly
-            # Use IBS percent directly for pIBSUF
-            p_ibs_uf = self.ibs_percent or 0.0
-            # Use IBS value directly for vIBSUF, or calculate from base and percent
-            if self.ibs_value:
-                v_ibs_uf = self.ibs_value
-            elif p_ibs_uf > 0 and v_bc > 0:
-                v_ibs_uf = v_bc * p_ibs_uf / 100
-            else:
-                v_ibs_uf = 0.0
-
-            # IBS Municipal values - not available yet, set to 0
-            p_ibs_mun = 0.0
-            v_ibs_mun = 0.0
-
-            # Total IBS - use IBS value directly or sum of UF + Municipal
-            v_ibs = self.ibs_value or (v_ibs_uf + v_ibs_mun)
-
-            # CBS values
-            p_cbs = self.cbs_percent or 0.0
-            v_cbs = self.cbs_value or (v_bc * p_cbs / 100) if p_cbs else 0.0
-
-            # Build gIBSUF
-            gibsuf = Tcibs.GIbsuf(
-                pIBSUF=f"{p_ibs_uf:.4f}",
-                vIBSUF=f"{v_ibs_uf:.2f}",
-            )
-
-            # Build gIBSMun
-            gibsmun = Tcibs.GIbsmun(
-                pIBSMun=f"{p_ibs_mun:.4f}",
-                vIBSMun=f"{v_ibs_mun:.2f}",
-            )
-
-            # Build gCBS
-            gcbs = Tcibs.GCbs(
-                pCBS=f"{p_cbs:.4f}",
-                vCBS=f"{v_cbs:.2f}",
-            )
-
-            # Build gIBSCBS (Tcibs)
-            gibscbs = Tcibs(
-                vBC=f"{v_bc:.2f}",
-                gIBSUF=gibsuf,
-                gIBSMun=gibsmun,
-                vIBS=f"{v_ibs:.2f}",
-                gCBS=gcbs,
-            )
-
-            # Build TtribNfe
-            ibscbs_obj = TtribNfe(
-                CST=cst,
-                cClassTrib=c_class_trib,
-                gIBSCBS=gibscbs,
-            )
-
-            return ibscbs_obj
-
+            return self._build_ibscbs_binding()
         return super()._export_field(xsd_field, class_obj, member_spec, export_value)
 
     def _export_many2one(self, field_name, xsd_required, class_obj=None):
         """Override to handle IBSCBS Many2one field export"""
         if field_name == "nfe40_IBSCBS":
-            if not self.ibs_value and not self.cbs_value:
-                return False
-
-            # Get tax classification code
-            c_class_trib = "000001"
-            if self.tax_classification_id and self.tax_classification_id.code:
-                c_class_trib = self.tax_classification_id.code.zfill(6)
-
-            # Get CST code - use IBS CST if available, otherwise CBS CST
-            cst = "000"
-            if self.ibs_cst_id and self.ibs_cst_id.code:
-                cst = self.ibs_cst_id.code
-            elif self.cbs_cst_id and self.cbs_cst_id.code:
-                cst = self.cbs_cst_id.code
-
-            # Base calculation - use IBS base or CBS base, whichever is available
-            v_bc = self.ibs_base or self.cbs_base or self.price_gross
-
-            # IBS UF values - when there's only one IBS, populate IBSUF directly
-            # Use IBS percent directly for pIBSUF
-            p_ibs_uf = self.ibs_percent or 0.0
-            # Use IBS value directly for vIBSUF, or calculate from base and percent
-            if self.ibs_value:
-                v_ibs_uf = self.ibs_value
-            elif p_ibs_uf > 0 and v_bc > 0:
-                v_ibs_uf = v_bc * p_ibs_uf / 100
-            else:
-                v_ibs_uf = 0.0
-
-            # IBS Municipal values - not available yet, set to 0
-            p_ibs_mun = 0.0
-            v_ibs_mun = 0.0
-
-            # Total IBS - use IBS value directly or sum of UF + Municipal
-            v_ibs = self.ibs_value or (v_ibs_uf + v_ibs_mun)
-
-            # CBS values
-            p_cbs = self.cbs_percent or 0.0
-            v_cbs = self.cbs_value or (v_bc * p_cbs / 100) if p_cbs else 0.0
-
-            # Build gIBSUF
-            gibsuf = Tcibs.GIbsuf(
-                pIBSUF=f"{p_ibs_uf:.4f}",
-                vIBSUF=f"{v_ibs_uf:.2f}",
-            )
-
-            # Build gIBSMun
-            gibsmun = Tcibs.GIbsmun(
-                pIBSMun=f"{p_ibs_mun:.4f}",
-                vIBSMun=f"{v_ibs_mun:.2f}",
-            )
-
-            # Build gCBS
-            gcbs = Tcibs.GCbs(
-                pCBS=f"{p_cbs:.4f}",
-                vCBS=f"{v_cbs:.2f}",
-            )
-
-            # Build gIBSCBS (Tcibs)
-            gibscbs = Tcibs(
-                vBC=f"{v_bc:.2f}",
-                gIBSUF=gibsuf,
-                gIBSMun=gibsmun,
-                vIBS=f"{v_ibs:.2f}",
-                gCBS=gcbs,
-            )
-
-            # Build TtribNfe
-            ibscbs_obj = TtribNfe(
-                CST=cst,
-                cClassTrib=c_class_trib,
-                gIBSCBS=gibscbs,
-            )
-
-            return ibscbs_obj
+            return self._build_ibscbs_binding()
 
         return super()._export_many2one(field_name, xsd_required, class_obj)
 
@@ -514,83 +494,11 @@ class NFeLine(spec_models.StackedModel):
         if self.document_id.document_type == "65":
             xsd_fields.remove("nfe40_IPI")
 
-        # Export IBSCBS if there are values
-        if self.ibs_value or self.cbs_value:
-            # Get tax classification code
-            c_class_trib = "000001"
-            if self.tax_classification_id and self.tax_classification_id.code:
-                c_class_trib = self.tax_classification_id.code.zfill(6)
-
-            # Get CST code - use IBS CST if available, otherwise CBS CST
-            cst = "000"
-            if self.ibs_cst_id and self.ibs_cst_id.code:
-                cst = self.ibs_cst_id.code
-            elif self.cbs_cst_id and self.cbs_cst_id.code:
-                cst = self.cbs_cst_id.code
-
-            # Base calculation - use IBS base or CBS base, whichever is available
-            v_bc = self.ibs_base or self.cbs_base or self.price_gross
-
-            # IBS UF values - when there's only one IBS, populate IBSUF directly
-            # Use IBS percent directly for pIBSUF
-            p_ibs_uf = self.ibs_percent or 0.0
-            # Use IBS value directly for vIBSUF, or calculate from base and percent
-            if self.ibs_value:
-                v_ibs_uf = self.ibs_value
-            elif p_ibs_uf > 0 and v_bc > 0:
-                v_ibs_uf = v_bc * p_ibs_uf / 100
-            else:
-                v_ibs_uf = 0.0
-
-            # IBS Municipal values - not available yet, set to 0
-            p_ibs_mun = 0.0
-            v_ibs_mun = 0.0
-
-            # Total IBS - use IBS value directly or sum of UF + Municipal
-            v_ibs = self.ibs_value or (v_ibs_uf + v_ibs_mun)
-
-            # CBS values
-            p_cbs = self.cbs_percent or 0.0
-            v_cbs = self.cbs_value or (v_bc * p_cbs / 100) if p_cbs else 0.0
-
-            # Build gIBSUF
-            gibsuf = Tcibs.GIbsuf(
-                pIBSUF=f"{p_ibs_uf:.4f}",
-                vIBSUF=f"{v_ibs_uf:.2f}",
-            )
-
-            # Build gIBSMun
-            gibsmun = Tcibs.GIbsmun(
-                pIBSMun=f"{p_ibs_mun:.4f}",
-                vIBSMun=f"{v_ibs_mun:.2f}",
-            )
-
-            # Build gCBS
-            gcbs = Tcibs.GCbs(
-                pCBS=f"{p_cbs:.4f}",
-                vCBS=f"{v_cbs:.2f}",
-            )
-
-            # Build gIBSCBS (Tcibs)
-            gibscbs = Tcibs(
-                vBC=f"{v_bc:.2f}",
-                gIBSUF=gibsuf,
-                gIBSMun=gibsmun,
-                vIBS=f"{v_ibs:.2f}",
-                gCBS=gcbs,
-            )
-
-            # Build TtribNfe and add to export_dict
-            ibscbs_obj = TtribNfe(
-                CST=cst,
-                cClassTrib=c_class_trib,
-                gIBSCBS=gibscbs,
-            )
-            export_dict["IBSCBS"] = ibscbs_obj
-        else:
-            # Remove IBSCBS from xsd_fields if no values
-            if "nfe40_IBSCBS" in xsd_fields:
-                xsd_fields.remove("nfe40_IBSCBS")
+        ibscbs = self._build_ibscbs_binding()
+        if ibscbs is not None:
+            export_dict["IBSCBS"] = ibscbs
+        elif "nfe40_IBSCBS" in xsd_fields:
+            xsd_fields.remove("nfe40_IBSCBS")
 
     ##################################################
     # NF-e tag: ICMS
