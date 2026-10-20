@@ -263,31 +263,44 @@ class NFeLine(spec_models.StackedModel):
             vIBSUF=f"{v_ibs_uf_devido:.2f}",   # valor DEVIDO
         )
 
-        # IBS Mun (zero por enquanto)
-        if cst in ("510", "515"):
-            g_dif_mun = Tdif(
-                pDif=f"{0.0:.4f}",
-                vDif=f"{0.0:.2f}",
-            )
-        else:
-            g_dif_mun = None
+        # IBS Municipal
+        p_ibs_mun_nom = 0.0  # alíquota nominal do IBS Mun (0.0 no período de transição 2026)
 
-        # IBS Mun
-        # IBS Mun
-        if cst in ("510", "515"):
-            g_dif_mun = Tdif(pDif=f"{0.0:.4f}", vDif=f"{0.0:.2f}")
-            # cClassTrib 515001 exige pRedAliq = 60%
-            p_red_mun = 60.0 if c_class_trib == "515001" else 0.0
+        # Percentual de redução do IBS Municipal:
+        # - prioridade para campo configurado na linha (ex.: self.ibs_mun_reduction)
+        # - fallback para regras por cClassTrib
+        p_red_mun = self.ibs_reduction or 0.0
+        if hasattr(self, "ibs_mun_reduction") and self.ibs_mun_reduction:
+            p_red_mun = self.ibs_mun_reduction
+        elif c_class_trib == "515001":
+            p_red_mun = 60.0
+        # adicione aqui outros cClassTrib que exijam redução municipal,
+        # conforme a tabela oficial (ex.: 200003, 200004, etc.)
+
+        # cClassTrib que exigem o grupo gRed mesmo com alíquota zero
+        CCLASS_TRIB_EXIGE_GRED_MUN = {
+            "515001",
+            # inclua outros códigos conforme a legislação
+        }
+
+        p_aliq_efet_mun = p_ibs_mun_nom * (1 - p_red_mun / 100.0)
+
+        if p_red_mun > 0 or c_class_trib in CCLASS_TRIB_EXIGE_GRED_MUN:
             g_red_mun = Tred(
-                pRedAliq=f"{p_red_mun:.4f}",      # ← 60.0000 para 515001
-                pAliqEfet=f"{0.0:.4f}",           # 0.0 * (1 - 60/100) = 0.0
+                pRedAliq=f"{p_red_mun:.4f}",
+                pAliqEfet=f"{p_aliq_efet_mun:.4f}",
             )
         else:
-            g_dif_mun = None
             g_red_mun = None
 
+        # gDif Municipal (quando aplicável — CST 510/515)
+        if cst in ("510", "515"):
+            g_dif_mun = Tdif(pDif=f"{0.0:.4f}", vDif=f"{0.0:.2f}")
+        else:
+            g_dif_mun = None
+
         gibsmun = Tcibs.GIbsmun(
-            pIBSMun=f"{0.0:.4f}",
+            pIBSMun=f"{p_ibs_mun_nom:.4f}",
             gDif=g_dif_mun,
             gRed=g_red_mun,
             vIBSMun=f"{0.0:.2f}",
