@@ -16,6 +16,9 @@ class Ferrov(models.AbstractModel):
     _name = "mdfe.30.ferrov"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Ferrov"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_ferroviario_v3_00"
+    )
 
     mdfe30_trem = fields.Many2one(
         comodel_name="mdfe.30.trem",
@@ -35,6 +38,9 @@ class Trem(models.AbstractModel):
     _name = "mdfe.30.trem"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Ferrov.Trem"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_ferroviario_v3_00"
+    )
 
     mdfe30_xPref = fields.Char(string="Prefixo do Trem", xsd_required=True)
 
@@ -68,6 +74,9 @@ class Vag(models.AbstractModel):
     _name = "mdfe.30.vag"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Ferrov.Vag"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_ferroviario_v3_00"
+    )
 
     mdfe30_vag_ferrov_id = fields.Many2one(
         comodel_name="mdfe.30.ferrov",

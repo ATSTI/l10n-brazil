@@ -16,6 +16,9 @@ class Aereo(models.AbstractModel):
     _name = "mdfe.30.aereo"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Aereo"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_aereo_v3_00"
+    )
 
     mdfe30_nac = fields.Char(
         string="Marca da Nacionalidade da aeronave", xsd_required=True

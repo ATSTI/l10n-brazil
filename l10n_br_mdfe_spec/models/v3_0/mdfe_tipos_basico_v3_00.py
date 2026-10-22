@@ -281,6 +281,10 @@ class TendeEmi(models.AbstractModel):
     _inherit = "spec.mixin.mdfe"
     _binding_type = "TendeEmi"
 
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_tipos_basico_v3_00"
+    )
+
     mdfe30_xLgr = fields.Char(string="Logradouro", xsd_required=True)
 
     mdfe30_nro = fields.Char(string="Número", xsd_required=True)
@@ -1392,6 +1396,10 @@ class Emit(models.AbstractModel):
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Tmdfe.InfMdfe.Emit"
 
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_tipos_basico_v3_00"
+    )
+
     mdfe30_CNPJ = fields.Char(
         string="CNPJ do emitente",
         choice="emit",
@@ -1436,6 +1444,10 @@ class InfModal(models.AbstractModel):
     _name = "mdfe.30.infmodal"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Tmdfe.InfMdfe.InfModal"
+
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_tipos_basico_v3_00"
+    )
 
     mdfe30_versaoModal = fields.Char(
         string="Versão do leiaute específico",

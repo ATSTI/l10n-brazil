@@ -39,6 +39,10 @@ class Aquav(models.AbstractModel):
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Aquav"
 
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_aquaviario_v3_00"
+    )
+
     mdfe30_irin = fields.Char(
         string="Irin do navio sempre deverá",
         xsd_required=True,
@@ -139,6 +143,9 @@ class InfTermCarreg(models.AbstractModel):
     _name = "mdfe.30.inftermcarreg"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Aquav.InfTermCarreg"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_aquaviario_v3_00"
+    )
 
     mdfe30_infTermCarreg_aquav_id = fields.Many2one(
         comodel_name="mdfe.30.aquav",
@@ -168,6 +175,9 @@ class InfTermDescarreg(models.AbstractModel):
     _name = "mdfe.30.inftermdescarreg"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Aquav.InfTermDescarreg"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_aquaviario_v3_00"
+    )
 
     mdfe30_infTermDescarreg_aquav_id = fields.Many2one(
         comodel_name="mdfe.30.aquav",
@@ -197,6 +207,9 @@ class InfEmbComb(models.AbstractModel):
     _name = "mdfe.30.infembcomb"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Aquav.InfEmbComb"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_aquaviario_v3_00"
+    )
 
     mdfe30_infEmbComb_aquav_id = fields.Many2one(
         comodel_name="mdfe.30.aquav",
@@ -218,6 +231,9 @@ class InfUnidCargaVazia(models.AbstractModel):
     _name = "mdfe.30.infunidcargavazia"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Aquav.InfUnidCargaVazia"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_aquaviario_v3_00"
+    )
 
     mdfe30_infUnidCargaVazia_aquav_id = fields.Many2one(
         comodel_name="mdfe.30.aquav",
@@ -249,6 +265,9 @@ class InfUnidTranspVazia(models.AbstractModel):
     _name = "mdfe.30.infunidtranspvazia"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Aquav.InfUnidTranspVazia"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_aquaviario_v3_00"
+    )
 
     mdfe30_infUnidTranspVazia_aquav_id = fields.Many2one(
         comodel_name="mdfe.30.aquav",

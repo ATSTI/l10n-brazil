@@ -126,6 +126,9 @@ class Rodo(models.AbstractModel):
     _name = "mdfe.30.rodo"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Rodo"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_rodoviario_v3_00"
+    )
 
     mdfe30_infANTT = fields.Many2one(
         comodel_name="mdfe.30.infantt",
@@ -157,6 +160,9 @@ class InfAntt(models.AbstractModel):
     _name = "mdfe.30.infantt"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Rodo.InfAntt"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_rodoviario_v3_00"
+    )
 
     mdfe30_RNTRC = fields.Char(
         string="Registro Nacional",
@@ -205,6 +211,9 @@ class InfCiot(models.AbstractModel):
     _name = "mdfe.30.infciot"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Rodo.InfAntt.InfCiot"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_rodoviario_v3_00"
+    )
 
     mdfe30_infCIOT_infANTT_id = fields.Many2one(
         comodel_name="mdfe.30.infantt",
@@ -254,6 +263,9 @@ class ValePed(models.AbstractModel):
     _name = "mdfe.30.valeped"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Rodo.InfAntt.ValePed"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_rodoviario_v3_00"
+    )
 
     mdfe30_disp = fields.One2many(
         "mdfe.30.disp",
@@ -283,6 +295,9 @@ class Disp(models.AbstractModel):
     _name = "mdfe.30.disp"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Rodo.InfAntt.ValePed.Disp"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_rodoviario_v3_00"
+    )
 
     mdfe30_disp_valePed_id = fields.Many2one(
         comodel_name="mdfe.30.valeped",
@@ -357,6 +372,9 @@ class InfContratante(models.AbstractModel):
     _name = "mdfe.30.infcontratante"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Rodo.InfAntt.InfContratante"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_rodoviario_v3_00"
+    )
 
     mdfe30_infContratante_infANTT_id = fields.Many2one(
         comodel_name="mdfe.30.infantt",
@@ -409,6 +427,9 @@ class InfContrato(models.AbstractModel):
     _name = "mdfe.30.infcontrato"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Rodo.InfAntt.InfContratante.InfContrato"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_rodoviario_v3_00"
+    )
 
     mdfe30_NroContrato = fields.Char(
         string="Número do contrato do transportador",
@@ -434,6 +455,10 @@ class RodoInfPag(models.AbstractModel):
     _name = "mdfe.30.rodo_infpag"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Rodo.InfAntt.InfPag"
+
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_rodoviario_v3_00"
+    )
 
     mdfe30_infPag_infANTT_id = fields.Many2one(
         comodel_name="mdfe.30.infantt",
@@ -558,6 +583,9 @@ class RodoComp(models.AbstractModel):
     _name = "mdfe.30.rodo_comp"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Rodo.InfAntt.InfPag.Comp"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_rodoviario_v3_00"
+    )
 
     mdfe30_Comp_infPag_id = fields.Many2one(
         comodel_name="mdfe.30.rodo_infpag",
@@ -594,6 +622,9 @@ class RodoInfPrazo(models.AbstractModel):
     _name = "mdfe.30.rodo_infprazo"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Rodo.InfAntt.InfPag.InfPrazo"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_rodoviario_v3_00"
+    )
 
     mdfe30_infPrazo_infPag_id = fields.Many2one(
         comodel_name="mdfe.30.rodo_infpag",
@@ -625,6 +656,9 @@ class RodoInfBanc(models.AbstractModel):
     _name = "mdfe.30.rodo_infbanc"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Rodo.InfAntt.InfPag.InfBanc"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_rodoviario_v3_00"
+    )
 
     mdfe30_codBanco = fields.Char(
         string="Número do banco", choice="infbanc", xsd_choice_required=True
@@ -665,6 +699,9 @@ class VeicTracao(models.AbstractModel):
     _name = "mdfe.30.veictracao"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Rodo.VeicTracao"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_rodoviario_v3_00"
+    )
 
     mdfe30_cInt = fields.Char(string="Código interno do veículo")
 
@@ -739,6 +776,9 @@ class VeicTracaoProp(models.AbstractModel):
     _name = "mdfe.30.veictracao_prop"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Rodo.VeicTracao.Prop"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_rodoviario_v3_00"
+    )
 
     mdfe30_CPF = fields.Char(
         string="Número do CPF",
@@ -797,6 +837,9 @@ class RodoCondutor(models.AbstractModel):
     _name = "mdfe.30.rodo_condutor"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Rodo.VeicTracao.Condutor"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_rodoviario_v3_00"
+    )
 
     mdfe30_condutor_veicTracao_id = fields.Many2one(
         comodel_name="mdfe.30.veictracao",
@@ -818,6 +861,9 @@ class VeicReboque(models.AbstractModel):
     _name = "mdfe.30.veicreboque"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Rodo.VeicReboque"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_rodoviario_v3_00"
+    )
 
     mdfe30_veicReboque_rodo_id = fields.Many2one(
         comodel_name="mdfe.30.rodo",
@@ -878,6 +924,9 @@ class VeicReboqueProp(models.AbstractModel):
     _name = "mdfe.30.veicreboque_prop"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Rodo.VeicReboque.Prop"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_rodoviario_v3_00"
+    )
 
     mdfe30_CPF = fields.Char(
         string="Número do CPF",
@@ -936,6 +985,9 @@ class LacRodo(models.AbstractModel):
     _name = "mdfe.30.lacrodo"
     _inherit = "spec.mixin.mdfe"
     _binding_type = "Rodo.LacRodo"
+    _mdfe30_binding_module = (
+        "nfelib.mdfe.bindings.v3_0.mdfe_modal_rodoviario_v3_00"
+    )
 
     mdfe30_lacRodo_rodo_id = fields.Many2one(
         comodel_name="mdfe.30.rodo",
