@@ -2,12 +2,54 @@
 <!-- Copyright 2023 KMEE
      License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl). -->
 <odoo>
+    <record id="document_tree" model="ir.ui.view">
+        <field name="name">l10n_br_mdfe.document.tree</field>
+        <field name="model">l10n_br_fiscal.document</field>
+        <field name="priority">5</field>
+        <field name="inherit_id" ref="l10n_br_fiscal.document_tree" />
+        <field name="arch" type="xml">
+            <field name="state_edoc" position="attributes">
+                <attribute
+                    name="decoration-success"
+                >state_edoc in ('autorizada','encerrada')</attribute>
+            </field>
+        </field>
+    </record>
+
     <record model="ir.ui.view" id="mdfe_document_form_view">
         <field name="name">mdfe.document.form.view (in l10n_br_mdfe)</field>
         <field name="model">l10n_br_fiscal.document</field>
         <field name="inherit_id" ref="l10n_br_fiscal.document_form" />
         <field name="priority">5</field>
         <field name="arch" type="xml">
+            <xpath expr="//button[@name='action_document_back2draft']" position="attributes">
+                <attribute
+                    name="attrs"
+                >{'invisible': [('state_edoc', 'in', ('em_digitacao', 'autorizada', 'encerrada'))]}</attribute>
+            </xpath>
+            <xpath expr="//button[@name='action_document_cancel']" position="before">
+                <button
+                    name="action_document_closure"
+                    type="object"
+                    string="Encerrar"
+                    groups="l10n_br_fiscal.group_user"
+                    attrs="{'invisible': [('state_edoc', '!=', 'autorizada')]}"
+                />
+            </xpath>
+            <xpath expr="//div[@role='alert'][contains(., 'Authorized')]" position="after">
+                <div
+                    class="alert alert-success"
+                    role="alert"
+                    attrs="{'invisible': [('state_edoc','!=','encerrada')]}"
+                >
+                    Fiscal Document:
+                    <field name="document_type_id" readonly="1"/>
+                     is <strong>Closed</strong>
+                </div>
+            </xpath>
+            <xpath expr="//field[@name='state_edoc']" position="attributes">
+                <attribute name="statusbar_visible">em_digitacao,a_enviar,enviada,autorizada,encerrada</attribute>
+            </xpath>
             <xpath expr="//page[@name='document_related']" position="attributes">
                 <attribute
                     name="attrs"

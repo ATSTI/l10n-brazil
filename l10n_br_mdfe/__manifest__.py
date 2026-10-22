@@ -15,6 +15,7 @@
         "l10n_br_fiscal_edi",
         "l10n_br_fiscal_certificate",
         "l10n_br_mdfe_spec",
+        "l10n_br_nfe",
         "spec_driven_model",
     ],
     "data": [
@@ -35,6 +36,8 @@
         "views/modal/modal_ferroviario.xml",
         # Report
         "report/damdfe_report.xml",
+        # Wizards
+        "wizards/document_closure_wizard_view.xml",
     ],
     "demo": [
         "demo/fiscal_document_demo.xml",
