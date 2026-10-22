@@ -21,11 +21,10 @@ class SpecMixinExport(models.AbstractModel):
         Use (_spec_prefix)_binding_type of odoo_class and its binding_module to get
         the Python binding type for export.
         """
-        # importlib because the binding may not be imported yet: modules with
-        # an optional external dependency cannot import it at load time (any
-        # warning at loading fails the checklog), so nothing guarantees the
-        # binding is in sys.modules before the first export.
-        binding_module = import_module(self._get_spec_property("binding_module"))
+        # IMPORTANTE: Buscar binding_module em odoo_class em vez de self
+        binding_module_name = odoo_class._get_spec_property("binding_module") or self._get_spec_property("binding_module")
+        binding_module = import_module(binding_module_name)
+        
         binding_type = odoo_class._get_spec_property("binding_type")
         if not binding_type and field_name:
             if field_name in odoo_class._fields and hasattr(
