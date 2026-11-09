@@ -20,6 +20,11 @@ msgid "1.01"
 msgstr "1.01"
 
 #. module: l10n_br_nfe_dfe
+#: model_terms:ir.ui.view,arch_db:l10n_br_nfe_dfe.view_l10n_br_fiscal_dfe_document_form_nfe
+msgid "<span class=\"o_stat_text\">Invoice</span>"
+msgstr ""
+
+#. module: l10n_br_nfe_dfe
 #: model_terms:ir.ui.view,arch_db:l10n_br_nfe_dfe.nfe_dfe_document_tree
 msgid "Amount"
 msgstr "Valor"
@@ -65,12 +70,6 @@ msgid "Confirmada operação"
 msgstr "Confirmada operação"
 
 #. module: l10n_br_nfe_dfe
-#: model_terms:ir.ui.view,arch_db:l10n_br_nfe_dfe.nfe_dfe_document_tree
-#: model_terms:ir.ui.view,arch_db:l10n_br_nfe_dfe.view_l10n_br_fiscal_dfe_document_form_nfe
-msgid "DANFE"
-msgstr "DANFE"
-
-#. module: l10n_br_nfe_dfe
 #: model:ir.actions.server,name:l10n_br_nfe_dfe.ir_cron_search_dfe_documents_ir_actions_server
 #: model:ir.cron,cron_name:l10n_br_nfe_dfe.ir_cron_search_dfe_documents
 msgid "DF-e - Search NF-e Documents"
@@ -103,6 +102,18 @@ msgid "Import"
 msgstr "Importar"
 
 #. module: l10n_br_nfe_dfe
+#. odoo-python
+#: code:addons/l10n_br_nfe_dfe/models/dfe_document.py:0
+#, python-format
+msgid "Import NF-e XML"
+msgstr ""
+
+#. module: l10n_br_nfe_dfe
+#: model_terms:ir.ui.view,arch_db:l10n_br_nfe_dfe.nfe_dfe_document_tree
+msgid "Invoice"
+msgstr ""
+
+#. module: l10n_br_nfe_dfe
 #: model_terms:ir.ui.view,arch_db:l10n_br_nfe_dfe.nfe_dfe_res_company_form
 msgid "Last Query"
 msgstr "Última Consulta"
@@ -128,13 +139,6 @@ msgstr "Status da Manifestação"
 #: model:ir.model.fields,field_description:l10n_br_nfe_dfe.field_l10n_br_fiscal_dfe_document__manifestations_ids
 msgid "Manifestations"
 msgstr "Manifestações"
-
-#. module: l10n_br_nfe_dfe
-#. odoo-python
-#: code:addons/l10n_br_nfe_dfe/models/dfe_document.py:0
-#, python-format
-msgid "Manifestação do Destinatário da NF-e"
-msgstr "Manifestação do Destinatário da NF-e"
 
 #. module: l10n_br_nfe_dfe
 #: model_terms:ir.ui.view,arch_db:l10n_br_nfe_dfe.nfe_dfe_res_company_form
@@ -187,6 +191,13 @@ msgid "NF-e Next Scheduled Query"
 msgstr "Próxima Consulta Agendada (NF-e)"
 
 #. module: l10n_br_nfe_dfe
+#. odoo-python
+#: code:addons/l10n_br_nfe_dfe/models/dfe_document.py:0
+#, python-format
+msgid "NF-e Recipient Manifestation"
+msgstr ""
+
+#. module: l10n_br_nfe_dfe
 #: model:ir.actions.act_window,name:l10n_br_nfe_dfe.action_nfe_dfe_document
 #: model:ir.ui.menu,name:l10n_br_nfe_dfe.menu_l10n_br_nfe_dfe_document
 msgid "NF-e de Terceiros"
@@ -208,6 +219,11 @@ msgstr "Nenhum DF-e completo encontrado."
 #: model:ir.model.fields.selection,name:l10n_br_nfe_dfe.selection__l10n_br_fiscal_dfe_document__manifestation_status__nao_realizado
 msgid "Não realizado"
 msgstr "Não realizado"
+
+#. module: l10n_br_nfe_dfe
+#: model_terms:ir.ui.view,arch_db:l10n_br_nfe_dfe.nfe_dfe_document_tree
+msgid "PDF"
+msgstr ""
 
 #. module: l10n_br_nfe_dfe
 #: model:ir.model.fields,help:l10n_br_nfe_dfe.field_res_company__nfe_auto_fetch
@@ -255,3 +271,10 @@ msgstr "XML"
 #, python-format
 msgid "You can only import the NF-e when the DF-e is completed."
 msgstr "Você só pode importar a NF-e quando o DF-e estiver completo."
+
+#~ msgid "DANFE"
+#~ msgstr "DANFE"
+
+#, python-format
+#~ msgid "Manifestação do Destinatário da NF-e"
+#~ msgstr "Manifestação do Destinatário da NF-e"

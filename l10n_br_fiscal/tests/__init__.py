@@ -18,4 +18,7 @@ from . import (
     test_service_type,
     test_operation,
     test_tax_framework,
+    test_tax_pis_cofins,
+    test_icmssn,
+    test_simplified_tax,
 )
