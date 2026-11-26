@@ -127,6 +127,12 @@ class Document(models.Model):
         copy=False,
     )
 
+    xml_error_message = fields.Text(
+        readonly=True,
+        string="XML validation errors",
+        copy=False,
+    )
+
     # Authorization Event Related Fields
     authorization_event_id = fields.Many2one(
         comodel_name="l10n_br_fiscal.event",
@@ -159,6 +165,15 @@ class Document(models.Model):
         string="Authorization File XML",
         ondelete="restrict",
         readonly=True,
+    )
+
+    original_xml_file_id = fields.Many2one(
+        comodel_name="ir.attachment",
+        string="Original XML File",
+        copy=False,
+        readonly=True,
+        help="XML of a document issued by a third party, kept as received "
+        "when the document is imported. It is not an authorization event.",
     )
 
     # Cancel Event Related Fields
@@ -248,6 +263,42 @@ class Document(models.Model):
                         "documents!"
                     )
                 )
+
+    @api.constrains("document_key")
+    def _check_key(self):
+        for record in self:
+            if not record.document_key:
+                return
+
+            documents = record.env["l10n_br_fiscal.document"].search_count(
+                [
+                    ("id", "!=", record.id),
+                    ("company_id", "=", record.company_id.id),
+                    ("issuer", "=", record.issuer),
+                    ("document_key", "=", record.document_key),
+                    (
+                        "document_type",
+                        "in",
+                        (
+                            MODELO_FISCAL_CTE,
+                            MODELO_FISCAL_NFCE,
+                            MODELO_FISCAL_NFE,
+                            MODELO_FISCAL_NFSE,
+                        ),
+                    ),
+                    ("state", "!=", "cancelada"),
+                ]
+            )
+
+            if documents:
+                raise ValidationError(
+                    self.env._(
+                        "There is already a fiscal document with this key: %(doc_key)s",
+                        doc_key=record.document_key,
+                    )
+                )
+            else:
+                ChaveEdoc(chave=record.document_key, validar=True)
 
     # -------------------------------------------------------------------------
     # State Machine Logic
@@ -469,6 +520,7 @@ class Document(models.Model):
                     errors=self.xml_error_message,
                 )
             )
+        self._refresh_future_document_date()
 
     def _after_document_send(self):
         # Trigger actual sending logic
@@ -516,6 +568,36 @@ class Document(models.Model):
         if not self.date_in_out:
             self.date_in_out = fields.Datetime.now()
 
+    def _refresh_future_document_date(self):
+        """Avoid the SEFAZ rejection 703 (emission date later than the
+        reception date) when the document is sent with a future emission date.
+
+        The date is replaced by the current one. As the document key carries
+        the emission year and month, it is rebuilt when the month changes.
+        """
+        self.ensure_one()
+        if (
+            self.issuer != DOCUMENT_ISSUER_COMPANY
+            or not self.document_electronic
+            or not self.document_date
+        ):
+            return
+        now = fields.Datetime.now()
+        if self.document_date <= now:
+            return
+        vals = {"document_date": now}
+        # The output date cannot be earlier than the emission date
+        if self.date_in_out and self.date_in_out < now:
+            vals["date_in_out"] = now
+        key_month = self.document_key and self.document_key[2:6]
+        new_month = fields.Datetime.context_timestamp(self, now).strftime("%y%m")
+        key_is_stale = bool(key_month) and key_month != new_month
+        if key_is_stale:
+            vals["document_key"] = False
+        self.write(vals)
+        if key_is_stale:
+            self._document_number()
+
     def _document_check(self):
         return True
 
@@ -561,15 +643,7 @@ class Document(models.Model):
         if self.issuer == DOCUMENT_ISSUER_COMPANY:
             if self.document_serie_id:
                 self.document_serie = self.document_serie_id.code
-
-                if self.document_type == MODELO_FISCAL_NFSE and not self.rps_number:
-                    self.rps_number = self.document_serie_id.next_seq_number()
-
-                if (
-                    self.document_type != MODELO_FISCAL_NFSE
-                    and not self.document_number
-                ):
-                    self.document_number = self.document_serie_id.next_seq_number()
+                self._document_number_from_serie()
 
             if not self.operation_name:
                 self.operation_name = ", ".join(
@@ -581,6 +655,23 @@ class Document(models.Model):
 
             if self.document_electronic and not self.document_key:
                 self._generate_key()
+
+    def _document_number_from_serie(self):
+        """Assign the number taken from the document serie.
+
+        Overridden by the NFS-e modules: a municipal NFS-e is numbered from
+        its RPS, so it assigns ``rps_number`` instead of ``document_number``.
+        """
+        if self.document_serie_id and not self.document_number:
+            self.document_number = self.document_serie_id.next_seq_number()
+
+    def _prepare_event_document_number(self):
+        """Number identifying the document in its events.
+
+        Overridden by the NFS-e modules to report the RPS number the
+        document was issued from.
+        """
+        return self.document_number
 
     def _document_send_logic(self):
         """
@@ -724,6 +815,7 @@ class Document(models.Model):
         for doc in self:
             if doc.state_edoc != DOCUMENT_STATE_DRAFT:
                 continue  # idempotent: already confirmed
+            doc._check_document_split()
             if doc.document_electronic and doc.issuer == DOCUMENT_ISSUER_COMPANY:
                 doc._trigger_fsm("action_validate")
                 if doc._direct_draft_send():
@@ -742,6 +834,19 @@ class Document(models.Model):
 
     def action_document_back2draft(self):
         """Override base button"""
+        if (
+            self.state_edoc == DOCUMENT_STATE_CANCEL
+            and self.document_number
+            and self.issuer == DOCUMENT_ISSUER_COMPANY
+            and self.cancel_event_id
+        ):
+            raise UserError(
+                self.env._(
+                    "You can't set this document number: %(doc_number)s to draft "
+                    "because this document is cancelled in SEFAZ",
+                    doc_number=self.document_number,
+                )
+            )
         if self.document_electronic and self.issuer == DOCUMENT_ISSUER_COMPANY:
             if self.state_edoc == DOCUMENT_STATE_DRAFT:
                 return True  # idempotent: already in draft
@@ -824,7 +929,9 @@ class Document(models.Model):
 
     def view_xml(self):
         self.ensure_one()
-        xml_file = self.authorization_file_id or self.send_file_id
+        xml_file = (
+            self.authorization_file_id or self.send_file_id or self.original_xml_file_id
+        )
         if not xml_file:
             self._document_export()
             xml_file = self.authorization_file_id or self.send_file_id

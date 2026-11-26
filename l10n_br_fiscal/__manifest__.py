@@ -10,7 +10,7 @@
     "maintainers": ["renatonlima", "rvalyi"],
     "website": "https://github.com/OCA/l10n-brazil",
     "development_status": "Production/Stable",
-    "version": "18.0.9.14.0",
+    "version": "18.0.12.1.0",
     "depends": [
         "product",
         "uom_alias",
@@ -33,6 +33,7 @@
         "data/l10n_br_fiscal.product.genre.csv",
         "data/l10n_br_fiscal.cst.csv",
         "data/l10n_br_fiscal.tax.csv",
+        "data/l10n_br_fiscal_tax_withholding_data.xml",
         "data/l10n_br_fiscal.tax.pis.cofins.csv",
         "data/l10n_br_fiscal_server_action.xml",
         "data/ir_cron.xml",
@@ -50,6 +51,7 @@
         "data/l10n_br_fiscal.tax.classification.csv",
         "data/l10n_br_fiscal.service.type.csv",
         "data/l10n_br_fiscal.operation.indicator.csv",
+        "data/l10n_br_fiscal_operation_indicator_data.xml",
         "data/simplified_tax_data.xml",
         "data/operation_data.xml",
         "data/l10n_br_fiscal_tax_icms_data.xml",
@@ -103,6 +105,7 @@
         "views/document_line_view.xml",
         "views/document_line_mixin_view.xml",
         "views/res_config_settings_view.xml",
+        "views/report_templates.xml",
         "views/uom_uom.xml",
         "views/invalidate_number_view.xml",
         "views/city_taxation_code.xml",
@@ -114,6 +117,7 @@
         "views/l10n_br_fiscal_action.xml",
         # Menus
         "views/l10n_br_fiscal_menu.xml",
+        "views/document_line_report_view.xml",
     ],
     "assets": {
         "web.assets_backend": [
@@ -136,7 +140,7 @@
     "auto_install": False,
     "external_dependencies": {
         "python": [
-            "erpbrasil-base>=2.4.2",
+            "erpbrasil-base>=2.5.0",
         ]
     },
     "post_init_hook": "post_init_hook",

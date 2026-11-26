@@ -359,6 +359,30 @@ class FiscalDocument(models.Model):
             self._document_deny()
         return super().exec_after_SITUACAO_EDOC_DENEGADA(old_state, new_state)
 
+    def _vendor_bill_import_block_reason(self):
+        """Stop a second vendor bill for a document already in use.
+
+        A posted bill and a draft bill are different reasons. A cancelled
+        bill no longer holds the document.
+        """
+        self.ensure_one()
+        moves = self.move_ids.filtered(
+            lambda move: move.move_type in ("in_invoice", "in_refund")
+            and move.state != "cancel"
+        )
+        posted = moves.filtered(lambda move: move.state == "posted")
+        if posted:
+            return _(
+                "This document is already posted on %(invoice)s.",
+                invoice=posted[:1].display_name,
+            )
+        if moves:
+            return _(
+                "This document is already linked to %(invoice)s.",
+                invoice=moves[:1].display_name,
+            )
+        return False
+
     def _check_document_import(self):
         """Ensure an imported fiscal document has the minimum data required
         to generate a valid account move (and a sound SPED basis).
@@ -387,3 +411,20 @@ class FiscalDocument(models.Model):
                 _("The document cannot be imported due to incomplete lines:\n%s")
                 % "\n".join(errors)
             )
+
+    def dfe_utilization_from_bills(self):
+        """Inbox utilization while a vendor bill for this document is posted.
+
+        ``l10n_br_fiscal_dfe`` calls this when accounting is installed. A
+        draft or cancelled bill does not count, so cancelling the bill
+        returns an authorized inbox row to available.
+        """
+        self.ensure_one()
+        posted = self.move_ids.filtered(
+            lambda move: (
+                move.company_id == self.company_id
+                and move.move_type in ("in_invoice", "in_refund")
+                and move.state == "posted"
+            )
+        )
+        return "posted" if posted else False

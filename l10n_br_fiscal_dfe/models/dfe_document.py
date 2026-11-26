@@ -29,7 +29,7 @@ class L10nBrFiscalDfeDocument(models.Model):
         ),
     ]
 
-    access_key = fields.Char(size=44, required=True, index=True)
+    access_key = fields.Char(size=50, required=True, index=True)
 
     fiscal_type = fields.Selection(
         selection=[("nfe", "NF-e"), ("cte", "CT-e")],
@@ -68,7 +68,8 @@ class L10nBrFiscalDfeDocument(models.Model):
 
     document_emission_date = fields.Datetime(string="Emission Date")
 
-    serie = fields.Char(size=3)
+    # A national NFS-e DPS series has up to 5 characters (TSSerieDPS).
+    serie = fields.Char(size=5)
 
     color_status = fields.Selection(
         [
@@ -101,6 +102,33 @@ class L10nBrFiscalDfeDocument(models.Model):
         help="True when the emitter CNPJ in the access key matches the company CNPJ.",
     )
 
+    fiscal_document_id = fields.Many2one(
+        comodel_name="l10n_br_fiscal.document",
+        string="Fiscal Document",
+        compute="_compute_fiscal_document_id",
+        search="_search_fiscal_document_id",
+        help="Fiscal document already imported with this access key.",
+    )
+
+    utilization = fields.Selection(
+        selection=[
+            ("available", "Available"),
+            ("posted", "Posted"),
+        ],
+        compute="_compute_utilization",
+        help="Available while the document is still authorized at the "
+        "source and no vendor bill is posted. Posted while a vendor "
+        "bill is posted. Empty when the source cancelled or denied "
+        "the document.",
+    )
+
+    import_block_reason = fields.Char(
+        string="Block Reason",
+        compute="_compute_import_block_reason",
+        help="Why this document cannot be imported. Empty when the import "
+        "can proceed.",
+    )
+
     @api.depends("access_key")
     def _compute_partner_id(self):
         Partner = self.env["res.partner"]
@@ -119,6 +147,88 @@ class L10nBrFiscalDfeDocument(models.Model):
     def action_match_partner(self):
         """Re-run the partner matching logic"""
         self.sudo()._compute_partner_id()
+
+    @api.depends("access_key", "company_id")
+    def _compute_fiscal_document_id(self):
+        """Link each inbox row to the fiscal document that shares its access key."""
+        keys = [key for key in self.mapped("access_key") if key]
+        grouped = {}
+        if keys:
+            matches = self.env["l10n_br_fiscal.document"].search(
+                [("document_key", "in", keys)]
+            )
+            for document in matches:
+                grouped.setdefault(
+                    document.document_key, self.env["l10n_br_fiscal.document"]
+                )
+                grouped[document.document_key] |= document
+        empty = self.env["l10n_br_fiscal.document"]
+        for record in self:
+            candidates = grouped.get(record.access_key, empty)
+            record.fiscal_document_id = record._match_fiscal_document(candidates)
+
+    def _match_fiscal_document(self, candidates):
+        """Return the fiscal document imported from this inbox row.
+
+        ``candidates`` already share this access key. The default keeps the
+        document of the same company. A fiscal-type module overrides this
+        when its match differs and may ignore ``candidates``.
+        """
+        self.ensure_one()
+        same_company = candidates.filtered(
+            lambda document, company=self.company_id: document.company_id == company
+        )
+        return (same_company or candidates)[:1]
+
+    @api.depends("document_state", "access_key", "company_id")
+    def _compute_utilization(self):
+        for record in self:
+            record.utilization = record._get_utilization()
+
+    def _get_utilization(self):
+        """Available, posted, or empty when the source cancelled it.
+
+        A posted vendor bill is reported by ``dfe_utilization_from_bills``
+        on the fiscal document when ``l10n_br_account`` is installed. This
+        module does not depend on accounting. Codes ``2`` and ``3`` are
+        the denied and cancelled situations shared by the NF-e and NFS-e
+        inboxes.
+        """
+        self.ensure_one()
+        if self.document_state in ("2", "3"):
+            return False
+        document = self.fiscal_document_id
+        utilization = False
+        if document and hasattr(document, "dfe_utilization_from_bills"):
+            utilization = document.dfe_utilization_from_bills()
+        return utilization or "available"
+
+    def _search_fiscal_document_id(self, operator, value):
+        """Inbox rows whose access key is already a fiscal document key."""
+        if operator in ("=", "!=") and not value:
+            key_operator = "not in" if operator == "=" else "in"
+            return [("access_key", key_operator, self._imported_access_keys())]
+        fiscal_documents = self.env["l10n_br_fiscal.document"]
+        if operator in ("=", "in"):
+            ids = value if operator == "in" else [value]
+            keys = fiscal_documents.browse([item for item in ids if item]).mapped(
+                "document_key"
+            )
+            return [("access_key", "in", keys)]
+        if operator in ("!=", "not in"):
+            ids = value if operator == "not in" else [value]
+            keys = fiscal_documents.browse([item for item in ids if item]).mapped(
+                "document_key"
+            )
+            return [("access_key", "not in", keys)]
+        return NotImplemented
+
+    def _imported_access_keys(self):
+        return (
+            self.env["l10n_br_fiscal.document"]
+            .search([("document_key", "!=", False)])
+            .mapped("document_key")
+        )
 
     @api.depends("access_key", "company_id.vat")
     def _compute_is_own_document(self):
@@ -225,6 +335,70 @@ class L10nBrFiscalDfeDocument(models.Model):
             ),
             "target": "self",
         }
+
+    @api.depends("document_state", "access_key", "company_id", "fiscal_document_id")
+    def _compute_import_block_reason(self):
+        for record in self:
+            record.import_block_reason = record._get_import_block_reason()
+
+    def _get_import_block_reason(self):
+        """Return why this inbox document cannot be imported.
+
+        An authorized document with no vendor bill is available. A missing
+        source state only blocks once the complete XML is already here.
+        """
+        self.ensure_one()
+        state = self.document_state
+        if state == "3":
+            return _("This document was cancelled at the source.")
+        if state == "2":
+            return _("This document was denied at the source.")
+        if state and state != "1":
+            return _("Only an authorized document can be imported.")
+        if state == "1" or self._has_complete_xml():
+            if state != "1":
+                return _("Only an authorized document can be imported.")
+            return self._get_import_invoice_block_reason()
+        return False
+
+    def _has_complete_xml(self):
+        self.ensure_one()
+        complete = self._get_complete_dfe()
+        return bool(complete and complete.attachment_id)
+
+    def _same_company_fiscal_document(self):
+        """Fiscal document of this company that shares the access key."""
+        self.ensure_one()
+        document = self.fiscal_document_id
+        if document and document.company_id == self.company_id:
+            return document
+        if not self.access_key:
+            return self.env["l10n_br_fiscal.document"]
+        return self.env["l10n_br_fiscal.document"].search(
+            [
+                ("document_key", "=", self.access_key),
+                ("company_id", "=", self.company_id.id),
+            ],
+            limit=1,
+        )
+
+    def _get_import_invoice_block_reason(self):
+        """Block a document already posted or linked to a vendor bill.
+
+        The bill lives on the fiscal document once accounting is installed.
+        A cancelled bill does not keep the document unavailable.
+        """
+        self.ensure_one()
+        document = self._same_company_fiscal_document()
+        if not document or not hasattr(document, "_vendor_bill_import_block_reason"):
+            return False
+        return document._vendor_bill_import_block_reason()
+
+    def _check_import_allowed(self):
+        self.ensure_one()
+        reason = self._get_import_block_reason()
+        if reason:
+            raise UserError(reason)
 
     def import_document(self):
         """Import the document into the fiscal system.

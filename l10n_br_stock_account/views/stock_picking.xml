@@ -76,7 +76,6 @@
             </xpath>
             <xpath expr="//page[@name='extra']/group" position="inside">
                 <group name="delivery_costs" string="Delivery Costs">
-                    <field name="delivery_costs" invisible="1" />
                     <field
                         name="amount_freight_value"
                         widget='monetary'
@@ -133,6 +132,17 @@
             <field name="company_id" position="before">
                 <field name="document_number" readonly="1" />
             </field>
+        </field>
+    </record>
+
+    <record id="stock_picking_fiscal_search" model="ir.ui.view">
+        <field name="name">l10n_br_stock_account.stock.picking.fiscal.search</field>
+        <field name="model">stock.picking</field>
+        <field name="inherit_id" ref="stock.view_picking_internal_search" />
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <separator name="l10n_br_fiscal_report_filters" />
+            </xpath>
         </field>
     </record>
 </odoo>

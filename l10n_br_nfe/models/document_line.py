@@ -83,9 +83,11 @@ class NFeLine(spec_models.StackedModel):
     _nfe40_stacking_skip_paths = ("nfe40_det_infNFe_id",)
 
     # When dynamic stacking is applied, the NFe line has the following structure:
+    # (+ content of the m2o is stacked in the parent / - standard m2o /
+    # ≡ o2m; the mapped Odoo model may follow the tag)
     DET_TREE = """
-> <det>
-    > <prod>
++ <det>
+    + <prod>
         ≡ <gCred>
         ≡ <DI>
         ≡ <detExport>
@@ -96,28 +98,28 @@ class NFeLine(spec_models.StackedModel):
         - <med>
         ≡ <arma>
         - <comb>
-    > <imposto>
-        > <ICMS>
-            > <ICMSPart>
-            > <ICMSST>
-        > <IPI>
-            > <IPITrib>
-            > <IPINT>
-        > <II>
-        > <ISSQN>
-        > <PIS>
-            > <PISAliq>
-            > <PISQtde>
-            > <PISNT>
-            > <PISOutr>
-        > <PISST>
-        > <COFINS>
-            > <COFINSAliq>
-            > <COFINSQtde>
-            > <COFINSNT>
-            > <COFINSOutr>
-        > <COFINSST>
-        > <ICMSUFDest>
+    + <imposto>
+        + <ICMS>
+            + <ICMSPart>
+            + <ICMSST>
+        + <IPI>
+            + <IPITrib>
+            + <IPINT>
+        + <II>
+        + <ISSQN>
+        + <PIS>
+            + <PISAliq>
+            + <PISQtde>
+            + <PISNT>
+            + <PISOutr>
+        + <PISST>
+        + <COFINS>
+            + <COFINSAliq>
+            + <COFINSQtde>
+            + <COFINSNT>
+            + <COFINSOutr>
+        + <COFINSST>
+        + <ICMSUFDest>
     - <impostoDevol>
     - <obsItem>
     - <DFeReferenciado>"""
@@ -251,7 +253,8 @@ class NFeLine(spec_models.StackedModel):
             or self.name
             or ""
         )
-        export_dict["xProd"] = nfe40_xProd[:120].replace("\n", " ").strip()
+        # the 120 characters the schema allows are cut generically on export
+        export_dict["xProd"] = nfe40_xProd.replace("\n", " ").strip()
 
         nfe40_cEAN = self.product_id.barcode or "SEM GTIN"
         export_dict["cEAN"] = export_dict["cEANTrib"] = nfe40_cEAN
@@ -355,6 +358,16 @@ class NFeLine(spec_models.StackedModel):
 
     nfe40_vTotTrib = fields.Monetary(related="estimate_tax")
 
+    def _nfe40_has_ICMSUFDest(self):
+        """Interstate sale to a non-taxpayer: the item carries ICMSUFDest."""
+        self.ensure_one()
+        return (
+            self.icms_value > 0
+            and self.partner_id.ind_ie_dest == "9"
+            and self.partner_id.state_id != self.company_id.state_id
+            and self.partner_id.country_id == self.company_id.country_id
+        )
+
     def _export_fields_nfe_40_imposto(self, xsd_fields, class_obj, export_dict):
         if self.nfe40_choice_imposto == "nfe40_ICMS":
             xsd_fields.remove("nfe40_ISSQN")
@@ -362,13 +375,7 @@ class NFeLine(spec_models.StackedModel):
             xsd_fields.remove("nfe40_ICMS")
             xsd_fields.remove("nfe40_II")
 
-        if (
-            not self.icms_value
-            or self.icms_value <= 0
-            or self.partner_id.ind_ie_dest != "9"
-            or self.partner_id.state_id == self.company_id.state_id
-            or self.partner_id.country_id != self.company_id.country_id
-        ):
+        if not self._nfe40_has_ICMSUFDest():
             xsd_fields.remove("nfe40_ICMSUFDest")
 
         if not self.pisst_value or self.pisst_value <= 0:

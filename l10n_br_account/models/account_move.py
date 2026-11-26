@@ -31,6 +31,7 @@ class AccountMove(models.Model):
     _inherit = [
         _name,
         "l10n_br_account.decorator.mixin",
+        "l10n_br_fiscal.report.filter.mixin",
     ]
 
     # an account.move has normally 0 or 1 related fiscal document:
@@ -205,6 +206,15 @@ class AccountMove(models.Model):
     def _get_fiscal_lines_field_name(self):
         return "invoice_line_ids"
 
+    def _get_report_fiscal_totals(self):
+        # _inherits brings the fields of the fiscal document, not its methods
+        self.ensure_one()
+        return (
+            self.fiscal_document_id._get_report_fiscal_totals()
+            if self.fiscal_document_id
+            else False
+        )
+
     @api.onchange("ind_final")
     def _onchange_ind_final(self):
         """Propagate ind_final from the invoice header to its lines.
@@ -243,6 +253,19 @@ class AccountMove(models.Model):
             else:
                 defaults["issuer"] = DOCUMENT_ISSUER_PARTNER
         return defaults
+
+    @api.model
+    def _get_view_cache_key(self, view_id=None, view_type="form", **options):
+        """Separate cached views whose fiscal line edit mode differs."""
+        key = super()._get_view_cache_key(view_id, view_type, **options)
+        is_br = self.env.company.country_id.code == "BR"
+        if view_type != "form" or not is_br:
+            return key + (is_br,)
+        return key + (
+            is_br,
+            self.env.user.has_group("l10n_br_account.group_line_fiscal_detail"),
+            bool(self.env.context.get("force_line_fiscal_detail")),
+        )
 
     @api.model
     def _get_view(self, view_id=None, view_type="form", **options):
@@ -307,6 +330,9 @@ class AccountMove(models.Model):
             move.amount_untaxed_signed = sign * sum(
                 inv_line_ids.mapped("fiscal_amount_untaxed")
             )
+            move.amount_untaxed_in_currency_signed = sign * sum(
+                inv_line_ids.mapped("fiscal_amount_untaxed")
+            )
             move.amount_tax_signed = sign * sum(
                 inv_line_ids.mapped("fiscal_amount_tax")
             )
@@ -314,9 +340,12 @@ class AccountMove(models.Model):
 
         return result
 
+    @api.depends("document_type_id")
     def _compute_l10n_latam_document_type(self):
         """Override to map fiscal document_type_id to l10n_latam_document_type_id.
 
+        Optional compatibility: this module does not depend on
+        l10n_latam_invoice_document; the mapping only runs when it is installed.
         When l10n_latam_invoice_document is installed, it requires
         l10n_latam_document_type_id for posted invoices on journals that use documents.
         This override ensures that when a fiscal document_type_id is set
@@ -338,22 +367,32 @@ class AccountMove(models.Model):
             if current_values[move.id] and not move.l10n_latam_document_type_id:
                 move.l10n_latam_document_type_id = current_values[move.id]
 
-        # Set document type based on fiscal document_type_id.code
+        # The fiscal document_type_id is the source of truth: the upstream compute
+        # picks the first available LATAM type (NF-e), which is wrong for any
+        # other fiscal type (NFS-e, NFC-e...), so the LATAM type follows the
+        # fiscal one while the invoice can still be edited.
         for move in self.filtered(
-            lambda m: m.document_type_id and not m.l10n_latam_document_type_id
+            lambda m: m.document_type_id and m.state == "draft" and not m.posted_before
         ):
             latam_doc_type = self._find_latam_document_type(
                 move.document_type_id, move.company_id
             )
-            if latam_doc_type:
+            if latam_doc_type and move.l10n_latam_document_type_id != latam_doc_type:
                 move.l10n_latam_document_type_id = latam_doc_type
 
     @api.model
     def _find_latam_document_type(self, document_type, company):
+        # A Brazilian company may have another fiscal country (demo data), so
+        # the company country wins when it is BR.
+        country = (
+            company.country_id
+            if company.country_id.code == "BR"
+            else company.account_fiscal_country_id
+        )
         return self.env["l10n_latam.document.type"].search(
             [
                 ("code", "=", document_type.code),
-                ("country_id", "=", company.account_fiscal_country_id.id),
+                ("country_id", "=", country.id),
             ],
             limit=1,
         )
@@ -435,7 +474,7 @@ class AccountMove(models.Model):
                         values = {
                             "balance": term.get("company_amount"),
                             "amount_currency": term.get("foreign_amount"),
-                            "discount_amount_currency": term.get(
+                            "discount_amount_currency": invoice_payment_terms.get(
                                 "discount_amount_currency"
                             )
                             or 0.0,
@@ -623,22 +662,9 @@ class AccountMove(models.Model):
             # been cancelled by action_document_cancel() above, so skip the
             # back2draft to keep it in 'cancelada' (matching 16.0 behavior).
             return super().button_draft()
-        # Process fiscal documents first to sync their state
+        # Process fiscal documents first to sync their state (the fiscal
+        # document refuses back2draft when its cancellation is registered in SEFAZ)
         for move in self.filtered(lambda d: d.document_type_id):
-            if (
-                move.state_edoc == DOCUMENT_STATE_CANCEL
-                and move.document_number
-                and move.issuer == DOCUMENT_ISSUER_COMPANY
-                and move.fiscal_document_id.cancel_event_id
-            ):
-                raise UserError(
-                    self.env._(
-                        "You can't set this document number: %(doc_number)s to draft "
-                        "because this document is cancelled in SEFAZ",
-                        doc_number=move.document_number,
-                    )
-                )
-
             # Sync fiscal document state (this is idempotent)
             # Pass in_button_draft context to prevent document.py from
             # calling button_draft again (which would cause double super call)
@@ -817,10 +843,12 @@ class AccountMove(models.Model):
         void_states = (DOCUMENT_STATE_CANCEL, SITUACAO_EDOC_DENEGADA)
         settled_payment_states = ("in_payment", "paid", "partial")
         return self.filtered(
-            lambda move: move.payment_state in settled_payment_states
-            and any(
-                document.state_edoc in void_states
-                for document in move.fiscal_document_ids
+            lambda move: (
+                move.payment_state in settled_payment_states
+                and any(
+                    document.state_edoc in void_states
+                    for document in move.fiscal_document_ids
+                )
             )
         )
 
@@ -999,8 +1027,20 @@ class AccountMove(models.Model):
 
         return new_moves
 
+    def _cancel_keeps_fiscal_document(self):
+        """An imported supplier document stays as the source left it.
+
+        Cancelling the vendor bill must not cancel a document the partner
+        issued. A document this company issued is still cancelled with the
+        bill.
+        """
+        self.ensure_one()
+        return bool(self.imported_document and self.issuer == DOCUMENT_ISSUER_PARTNER)
+
     def button_cancel(self):
         for doc in self.filtered(lambda d: d.document_type_id):
+            if doc._cancel_keeps_fiscal_document():
+                continue
             if hasattr(doc.fiscal_document_id, "action_document_cancel"):
                 doc.fiscal_document_id.action_document_cancel()
         return super(
@@ -1077,11 +1117,17 @@ class AccountMove(models.Model):
         if not move_id or not move.fiscal_document_id:
             move_form.partner_id = fiscal_document.partner_id
             move_form.invoice_date = fiscal_document.document_date
-            move_form.date = fiscal_document.document_date
             move_form.document_type_id = fiscal_document.document_type_id
             move_form.fiscal_document_id = fiscal_document
             move_form.fiscal_operation_id = fiscal_document.fiscal_operation_id
-            move_form.document_serie = fiscal_document.document_serie
+            for field_name, value in (
+                ("date", fiscal_document.document_date),
+                ("document_serie", fiscal_document.document_serie),
+            ):
+                if not move_form._get_modifier(field_name, "invisible"):
+                    setattr(move_form, field_name, value)
+            if not move_form._get_modifier("document_serie_id", "invisible"):
+                move_form.document_serie_id = fiscal_document._import_document_serie()
             if (
                 "l10n_latam.document.type" in self.env
                 and move_form.l10n_latam_use_documents
@@ -1161,6 +1207,10 @@ class AccountMove(models.Model):
                     }
                 )
 
+                # amount_tax_(not_)included are NOT repeated here: they are
+                # delegated to the fiscal line through _inherits and writing
+                # them along with a new fiscal_document_line_id in the same
+                # vals would be ambiguous (old or new parent record?).
                 invoice_line_write_vals.append(
                     (
                         1,
@@ -1169,8 +1219,6 @@ class AccountMove(models.Model):
                             "product_uom_id": item["uot_id"],
                             "price_unit": item["price_unit"],
                             "fiscal_document_line_id": item["fiscal_line_id"],
-                            "amount_tax_included": item["amt_inc"],
-                            "amount_tax_not_included": item["amt_not_inc"],
                         },
                     )
                 )

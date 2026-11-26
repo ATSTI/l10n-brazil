@@ -25,6 +25,7 @@
                     date="document_date"
                 />
                 <filter name="date_in_out" string="Date In/Out" date="date_in_out" />
+                <separator name="l10n_br_fiscal_report_filters" />
                 <group expand="0" string="Group By...">
                     <filter
                         string="Month"
@@ -81,10 +82,12 @@
         <field name="model">l10n_br_fiscal.document</field>
         <field name="arch" type="xml">
             <form string="Fiscal Document">
-                <field name="id" invisible="1" />
+                <!-- currency_id is kept because the monetary widgets of this
+                     form need the currency value, which the framework does not
+                     add automatically -->
                 <field name="currency_id" invisible="1" />
-                <field name="document_electronic" invisible="1" />
-                <field name="fiscal_operation_type" invisible="1" />
+                <!-- document_type is kept as the anchor of the l10n_br_nfe
+                     inherited view, even though its modifiers are auto-added -->
                 <field name="document_type" invisible="1" />
                 <header>
                     <button
@@ -149,17 +152,9 @@
                 <div
                     class="alert alert-danger"
                     role="alert"
-                    invisible="not xml_error_message"
-                >
-                    <strong>XML validation errors:</strong>
-                    <field name="xml_error_message" readonly="1" />
-                </div>
-                <div
-                    class="alert alert-danger"
-                    role="alert"
                     invisible="state_edoc not in ('rejeitada', 'denegada')"
                 >Fiscal Document:
-                <field name="document_type_id" readonly="1" />
+                <field name="document_type_id" readonly="1" class="me-1" />
                 <strong>
                     <field name="state_edoc" readonly="1" />
                 </strong></div>
@@ -168,14 +163,14 @@
                     role="alert"
                     invisible="state_edoc != 'autorizada'"
                 >Fiscal Document:
-                <field name="document_type_id" readonly="1" />
+                <field name="document_type_id" readonly="1" class="me-1" />
                 <strong>Authorized</strong></div>
                 <div
                     class="alert alert-warning"
                     role="alert"
                     invisible="state_edoc != 'cancelada'"
                 >Fiscal Document:
-                <field name="document_type_id" readonly="1" />
+                <field name="document_type_id" readonly="1" class="me-1" />
                 <strong>Cancelled</strong></div>
                 <sheet string="Fiscal Document">
                     <div class="oe_button_box" name="button_box" />
@@ -257,7 +252,6 @@
                                 required="1"
                                 groups="base.group_multi_company"
                             />
-                            <field name="company_id" invisible="1" />
                         </group>
                     </group>
                     <notebook>
@@ -276,6 +270,8 @@
                                 }"
                             >
                                 <list>
+                                    <!-- column_invisible keeps the currency value
+                                         loaded for the monetary columns below -->
                                     <field name="currency_id" column_invisible="True" />
                                     <field name="product_id" />
                                     <field name="name" />
@@ -383,7 +379,6 @@
                                     <group string="Amounts">
                                         <field name="amount_price_gross" />
                                         <field name="amount_discount_value" />
-                                        <field name="delivery_costs" invisible="1" />
                                         <field
                                             name="amount_insurance_value"
                                             readonly="delivery_costs == 'line' and not force_compute_delivery_costs_by_total"

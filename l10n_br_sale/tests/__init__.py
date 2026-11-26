@@ -7,3 +7,7 @@ from . import test_l10n_br_sale_pricelist
 from . import test_sale_order_report
 from . import test_sale_order_ind_final
 from . import test_sale_order_edition
+from . import test_sale_order_amount
+from . import test_sale_report_taxes
+from . import test_search_filters
+from . import test_sale_portal_taxes

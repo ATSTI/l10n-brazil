@@ -47,11 +47,16 @@ class ResPartner(spec_models.SpecModel):
     nfse10_end = fields.Many2one("res.partner", compute="_compute_nfse10_end")
     nfse10_endNac = fields.Many2one("res.partner", compute="_compute_nfse10_end")
     nfse10_cNaoNIF = fields.Selection(compute="_compute_nfse10_cNaoNIF")
+    nfse10_NIF = fields.Char(compute="_compute_nfse10_NIF")
 
-    @api.depends("is_company", "cnpj_cpf_stripped", "zip", "phone")
+    @api.depends("is_company", "cnpj_cpf_stripped", "zip", "phone", "country_id")
     def _compute_nfse10_data(self):
         for rec in self:
-            if rec.cnpj_cpf_stripped:
+            if rec._nfse10_is_abroad():
+                # Abroad the document is a NIF, never a CNPJ or a CPF.
+                rec.nfse10_CNPJ = False
+                rec.nfse10_CPF = False
+            elif rec.cnpj_cpf_stripped:
                 if rec.is_company:
                     rec.nfse10_CNPJ = rec.cnpj_cpf_stripped
                     rec.nfse10_CPF = False
@@ -70,22 +75,35 @@ class ResPartner(spec_models.SpecModel):
         for rec in self:
             rec.nfse10_xNome = rec.legal_name or rec.name
 
+    @api.depends("street_name", "street_number", "district", "city_id")
     def _compute_nfse10_end(self):
         for rec in self:
-            rec.nfse10_end = rec.id
-            rec.nfse10_endNac = rec.id
+            # `toma/end` is optional in the leiaute (nfelib TcinfoPessoa.end has
+            # no required flag), while its children are: exporting the group for
+            # a partner without address makes the DPS fail schema validation
+            # ("endNac: Missing child element(s). Expected is (cMun)", "end:
+            # Missing child element(s). Expected is (xLgr)"). A taker identified
+            # only by its CNPJ is common, so leave the group out instead.
+            has_address = bool(rec.street_name and rec.city_id)
+            rec.nfse10_end = rec.id if has_address else False
+            rec.nfse10_endNac = rec.id if has_address else False
 
-    @api.depends("country_id", "cnpj_cpf_stripped")
+    def _nfse10_is_abroad(self):
+        return bool(self.country_id) and self.country_id.code != "BR"
+
+    @api.depends("country_id", "vat", "nif_motive_absence")
     def _compute_nfse10_cNaoNIF(self):
         for rec in self:
-            if (
-                rec.cnpj_cpf_stripped
-                or not rec.country_id
-                or rec.country_id.code == "BR"
-            ):
+            if not rec._nfse10_is_abroad() or rec.nfse10_NIF:
                 rec.nfse10_cNaoNIF = False
             else:
-                rec.nfse10_cNaoNIF = "1"  # 1 - Dispensado do NIF
+                # 0 not informed, 1 exemption from NIF, 2 NIF not required
+                rec.nfse10_cNaoNIF = rec.nif_motive_absence or "1"
+
+    @api.depends("country_id", "vat")
+    def _compute_nfse10_NIF(self):
+        for rec in self:
+            rec.nfse10_NIF = rec.vat if rec._nfse10_is_abroad() else False
 
     def _export_many2one(self, field_name, xsd_required, class_obj=None):
         if field_name in ("nfse10_end", "nfse10_endNac"):

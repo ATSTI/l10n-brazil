@@ -60,6 +60,16 @@
         <field name="priority">5</field>
         <field name="inherit_id" ref="l10n_br_fiscal.document_form" />
         <field name="arch" type="xml">
+            <xpath expr="//header" position="after">
+                <div
+                    class="alert alert-danger"
+                    role="alert"
+                    invisible="not xml_error_message"
+                >
+                    <strong>XML validation errors:</strong>
+                    <field name="xml_error_message" readonly="1" />
+                </div>
+            </xpath>
             <button name="action_create_return" position="before">
                 <button
                     name="action_document_correction"
@@ -92,6 +102,14 @@
                     name="statusbar_visible"
                 >em_digitacao,a_enviar,enviada,autorizada</attribute>
             </field>
+            <xpath expr="//strong[field[@name='state_edoc']]" position="after">
+                <span invisible="not status_code">:
+                    <field name="status_code" readonly="1" /> - <field
+                    name="status_name"
+                    readonly="1"
+                />
+                </span>
+            </xpath>
             <xpath expr="//page[@name='delivery']" position="after">
                 <page name="others" string="EDI">
                     <group>

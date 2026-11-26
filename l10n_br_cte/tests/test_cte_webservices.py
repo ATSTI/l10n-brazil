@@ -4,6 +4,7 @@
 import base64
 import gzip
 import logging
+import string
 from types import SimpleNamespace
 from unittest import mock
 
@@ -84,7 +85,11 @@ class TestCTeWebServices(TestCTeSerialize):
         self.assertEqual(str(processor.ambiente), self.cte.cte_environment)
 
     def test_edoc_processor_without_certificate(self):
-        """No company certificate: the processor refuses to be built."""
+        """No company certificate: the processor refuses to be built.
+
+        The certificate getter falls back to the e-CNPJ and raises its own
+        error, so the processor no longer pre-checks certificate_nfe_id.
+        """
         company = self.cte.company_id
         certificate = company.certificate_id
         company.certificate_id = False
@@ -139,6 +144,20 @@ class TestCTeWebServices(TestCTeSerialize):
         self.cte.cte40_tpEmis = "5"
         with self.assertRaises(UserError):
             self.cte._document_qrcode()
+
+    def test_toma4_identification(self):
+        """The "Outros" service taker is identified by partner_id."""
+        self.cte.service_provider = "4"
+        with mock.patch.object(CTe, "_validate_xml"):
+            self.cte._document_export()
+        xml = base64.b64decode(self.cte.send_file_id.datas).decode()
+        toma4 = xml.split("<toma4>")[1].split("</toma4>")[0]
+        partner = self.cte.partner_id
+        partner_cnpj = partner.vat.translate(str.maketrans("", "", string.punctuation))
+        self.assertIn(f"<CNPJ>{partner_cnpj}</CNPJ>", toma4)
+        self.assertIn("<xNome>", toma4)
+        self.assertIn("<enderToma>", toma4)
+        self.assertNotIn("<toma3>", xml)
 
     def test_cancel_authorized(self):
         """A CT-e cancellation event (cStat 135) cancels the document."""

@@ -153,7 +153,9 @@ class PartyMixin(models.AbstractModel):
             else:
                 record.cnpj_cpf_stripped = False
 
-    @api.depends("vat", "country_id")
+    # Not depending on country_id: choosing the state in the form of a new record
+    # changes the country and would erase the CNPJ typed before it.
+    @api.depends("vat")
     def _compute_vat_formatted_cnpj(self):
         for record in self:
             vat_formatted_cnpj = False
@@ -210,7 +212,8 @@ class PartyMixin(models.AbstractModel):
         """
         if not isinstance(vals, dict):
             return
-        vat = vals.get("vat")
+        # The company form sends `vat: False` with the formatted CNPJ.
+        vat = vals.get("vat") or vals.get("vat_formatted_cnpj")
         if not vat:
             return
         country_id = vals.get("country_id")
@@ -238,8 +241,6 @@ class PartyMixin(models.AbstractModel):
         """
         Defines when Brazilian localization fields should be displayed.
         """
+        br_country = self.env.ref("base.br")
         for record in self:
-            show_l10n_br = False
-            if record.country_id == record.env.ref("base.br"):
-                show_l10n_br = True
-            record.show_l10n_br = show_l10n_br
+            record.show_l10n_br = record.country_id == br_country

@@ -116,13 +116,21 @@ msgid "CNPJ/CEI Tomadora/Obra"
 msgstr ""
 
 #. module: l10n_br_hr
-#: model:ir.model.fields,field_description:l10n_br_hr.field_hr_employee__cnpj_cpf
-msgid "CNPJ/CPF"
+#: model:ir.model.fields,field_description:l10n_br_hr.field_hr_employee__vat
+#: model_terms:ir.ui.view,arch_db:l10n_br_hr.view_l10n_br_hr_employee_form
+msgid "CPF"
 msgstr ""
 
 #. module: l10n_br_hr
-#: model:ir.model.fields,field_description:l10n_br_hr.field_hr_employee__cpf
-msgid "CPF"
+#: model:ir.model.fields,field_description:l10n_br_hr.field_hr_employee__vat_formatted_cnpj
+msgid "CPF Formatted"
+msgstr ""
+
+#. module: l10n_br_hr
+#: model:ir.model.fields,help:l10n_br_hr.field_hr_employee__vat_formatted_cnpj
+msgid ""
+"CPF displayed with punctuation (XXX.XXX.XXX-XX); it is stored unformatted in"
+" the vat field."
 msgstr ""
 
 #. module: l10n_br_hr
@@ -389,7 +397,7 @@ msgid "Identidade"
 msgstr ""
 
 #. module: l10n_br_hr
-#: model:ir.model.fields,help:l10n_br_hr.field_hr_employee__cpf
+#: model:ir.model.fields,help:l10n_br_hr.field_hr_employee__vat
 msgid "Identification Number for selected type"
 msgstr ""
 
@@ -515,6 +523,18 @@ msgid "PIS/PASEP"
 msgstr ""
 
 #. module: l10n_br_hr
+#: model:ir.model.fields,field_description:l10n_br_hr.field_hr_employee__pis_pasep_formatted
+msgid "PIS/PASEP Formatted"
+msgstr ""
+
+#. module: l10n_br_hr
+#: model:ir.model.fields,help:l10n_br_hr.field_hr_employee__pis_pasep_formatted
+msgid ""
+"PIS/PASEP displayed with punctuation (XXX.XXXXX.XX-X); it is stored "
+"unformatted in the pis_pasep field."
+msgstr ""
+
+#. module: l10n_br_hr
 #: model:ir.model.fields,field_description:l10n_br_hr.field_hr_employee__pis_pasep_date
 msgid "PIS/PASEP emission date"
 msgstr ""
@@ -574,6 +594,12 @@ msgstr ""
 #: model:ir.actions.act_window,name:l10n_br_hr.hr_employee_terceirizado_action
 #: model:ir.ui.menu,name:l10n_br_hr.hr_menu_employee_terceirizado
 msgid "Terceirizados"
+msgstr ""
+
+#. module: l10n_br_hr
+#. odoo-python
+#: code:addons/l10n_br_hr/models/hr_employee.py:0
+msgid "The CTPS number must hold up to 11 digits, without punctuation."
 msgstr ""
 
 #. module: l10n_br_hr

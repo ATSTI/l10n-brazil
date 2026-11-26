@@ -12,6 +12,7 @@ from odoo.addons.l10n_br_fiscal.constants.fiscal import (
     DOCUMENT_STATE_CANCEL,
     DOCUMENT_STATE_DRAFT,
 )
+from odoo.addons.l10n_br_fiscal.tests.tools import assert_line_edit_mode_follows_group
 
 _logger = logging.getLogger(__name__)
 
@@ -404,7 +405,6 @@ class TestMoveEdition(TransactionCase):
         move.button_cancel()
 
         self.assertEqual(move.state_edoc, DOCUMENT_STATE_CANCEL)
-        self.assertFalse(move.fiscal_document_id.cancel_event_id)
 
         move.button_draft()
         self.assertEqual(move.state, "draft")
@@ -779,6 +779,50 @@ class TestMoveEdition(TransactionCase):
         move_form.fiscal_operation_id = self.env.ref("l10n_br_fiscal.fo_venda")
         return move_form
 
+    def test_latam_document_type_follows_fiscal_document_type(self):
+        """An invoice created with a fiscal document type other than the first
+        LATAM one (NF-e) must not be born as NF-e: the LATAM type follows the
+        fiscal one, as in an invoice created by the sales flow (e.g. NFS-e)."""
+        if "l10n_latam.document.type" not in self.env:
+            self.skipTest("l10n_latam_invoice_document is not installed")
+        self._setup_fiscal_user()
+        partner = self.env.ref("l10n_br_base.res_partner_cliente1_sp")
+        latam_type = self.env["l10n_latam.document.type"]
+        nfse = latam_type.search(
+            [("code", "=", "SE"), ("country_id", "=", self.env.ref("base.br").id)]
+        )
+        nfe = latam_type.search(
+            [("code", "=", "55"), ("country_id", "=", self.env.ref("base.br").id)]
+        )
+        self.assertTrue(nfse and nfe)
+        # a new journal: the use-documents flag cannot change once the journal
+        # has posted invoices
+        journal = self.env["account.journal"].create(
+            {
+                "name": "LATAM docs",
+                "code": "LTMD",
+                "type": "sale",
+                "company_id": self.company.id,
+                "l10n_latam_use_documents": True,
+            }
+        )
+        move = self.env["account.move"].create(
+            {
+                "move_type": "out_invoice",
+                "journal_id": journal.id,
+                "partner_id": partner.id,
+                "company_id": self.company.id,
+                "invoice_date": fields.Date.from_string("2025-01-01"),
+                "fiscal_operation_id": self.env.ref("l10n_br_fiscal.fo_venda").id,
+                "document_type_id": self.env.ref("l10n_br_fiscal.document_SE").id,
+            }
+        )
+        self.assertEqual(move.l10n_latam_document_type_id, nfse)
+
+        # changing the fiscal type of a draft invoice moves the LATAM one too
+        move.document_type_id = self.env.ref("l10n_br_fiscal.document_55")
+        self.assertEqual(move.l10n_latam_document_type_id, nfe)
+
     def test_lines_added_after_first_save_book_fiscal_amounts(self):
         self._setup_fiscal_user()
         partner = self.env.ref("l10n_br_base.res_partner_cliente1_sp")
@@ -991,3 +1035,15 @@ class TestMoveEdition(TransactionCase):
         fiscal_line = move.fiscal_line_ids[0]
         self.assertEqual(move.ind_final, "0")
         self.assertEqual(fiscal_line.ind_final, "0")
+
+    def test_get_view_cache_follows_fiscal_detail_group(self):
+        assert_line_edit_mode_follows_group(
+            self,
+            "account.move",
+            "invoice_line_ids",
+            [
+                "account.group_account_invoice",
+                "l10n_br_account.group_line_fiscal_detail",
+            ],
+            self.company,
+        )

@@ -84,6 +84,28 @@ class StockMove(models.Model):
         self.ensure_one()
         return self.picking_id
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get("picking_id") and not vals.get("fiscal_operation_id"):
+                picking = self.env["stock.picking"].browse(vals["picking_id"])
+                if picking.fiscal_operation_id:
+                    vals["fiscal_operation_id"] = picking.fiscal_operation_id.id
+        # skip_compute_fiscal_tax_ids avoids the precompute of the fiscal taxes
+        # (see _add_precomputed_values / _compute_fiscal_tax_ids below)
+        return super(
+            StockMove, self.with_context(skip_compute_fiscal_tax_ids=True)
+        ).create(vals_list)
+
+    def write(self, vals):
+        result = super().write(vals)
+        if vals.get("picking_id"):
+            for move in self.filtered(
+                lambda m: not m.fiscal_operation_id and m.picking_id.fiscal_operation_id
+            ):
+                move.fiscal_operation_id = move.picking_id.fiscal_operation_id
+        return result
+
     @api.depends("fiscal_tax_ids", "fiscal_operation_line_id")
     def _compute_tax_ids(self):
         for record in self:
@@ -136,8 +158,16 @@ class StockMove(models.Model):
         ]
         if not mixin_classes:
             return res
-        mixin_class = mixin_classes[0]
-        mixin_names = {field.name for field in mixin_class._field_definitions}
+        # Any addon may contribute its own class to this abstract mixin
+        # (its own `_inherit`). Collect field names and compute methods from
+        # all of them, not just the first one in the MRO: picking a single
+        # class here previously meant that, as soon as a third-party addon
+        # added its own class for this mixin, the fields it (that addon's
+        # class) doesn't define were silently skipped below, so their
+        # precompute wasn't disabled and the warnings came back.
+        mixin_names = {
+            field.name for klass in mixin_classes for field in klass._field_definitions
+        }
         for name in mixin_names:
             field = self._fields.get(name)
             if field is None or not field.precompute:
@@ -149,14 +179,14 @@ class StockMove(models.Model):
                 continue
             if not field.compute:
                 continue
-            # Look at the mixin method, not the stock.move override: the
+            # Look at the mixin methods, not the stock.move override: the
             # override may not repeat @api.depends, but the original field
             # definition still declares dependencies that drive precompute.
-            compute = getattr(mixin_class, field.compute, None)
-            if compute is None:
-                continue
-            func = getattr(compute, "__func__", compute)
-            if not getattr(func, "_depends", None):
+            has_depends = any(
+                getattr(getattr(klass, field.compute, None), "_depends", None)
+                for klass in mixin_classes
+            )
+            if not has_depends:
                 # Compute methods without explicit @api.depends rely on
                 # precompute to get their initial value (e.g. ind_final).
                 # Keep precompute enabled for them.
@@ -164,18 +194,11 @@ class StockMove(models.Model):
             field.precompute = False
         return res
 
-    @api.model_create_multi
-    def create(self, vals_list):
-        return super(
-            StockMove, self.with_context(skip_compute_fiscal_tax_ids=True)
-        ).create(vals_list)
-
     def _compute_fiscal_tax_ids(self):
-        # Skip during creation/precompute when record is not yet in DB.
-        # In Odoo 18, precompute runs during create before flush, causing
-        # the m2m insert to fail with FK constraint.
-        # Check if records exist in DB before writing to m2m relation.
-        if self.ids:
+        # No contexto de create/precompute o compute do mixin já retorna sem
+        # fazer nada (document_line_mixin.py:322), então o SELECT de existência
+        # abaixo seria uma query inútil: só roda quando o contexto não pede.
+        if self.ids and not self._context.get("skip_compute_fiscal_tax_ids"):
             self.env.cr.execute(
                 "SELECT id FROM stock_move WHERE id IN %s", (tuple(self.ids),)
             )

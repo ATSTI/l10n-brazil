@@ -27,7 +27,17 @@ class CNPJAlfanumericoTest(TransactionCase):
             "zip": "29161-695",
         }
 
-        cls.partner_pix = cls.env.ref("l10n_br_base.res_partner_amd")
+        cls.partner_pix = (
+            cls.env["res.partner"]
+            .with_context(tracking_disable=True)
+            .create(
+                {
+                    "name": "Parceiro PIX CNPJ Alfanumérico",
+                    "is_company": True,
+                    "country_id": cls.br_country.id,
+                }
+            )
+        )
 
     def test_company_valid_alphanumeric_cnpj(self):
         """Creating a company with a valid alphanumeric CNPJ must succeed."""
@@ -209,3 +219,19 @@ class CNPJAlfanumericoTest(TransactionCase):
         self.assertTrue(
             pix.id, "PIX key with unmasked alphanumeric CNPJ was not created"
         )
+
+    def test_company_created_with_only_formatted_cnpj(self):
+        """The company form sends `vat: False` with the formatted CNPJ."""
+        company = (
+            self.env["res.company"]
+            .with_context(tracking_disable=True)
+            .create(
+                {
+                    "name": "Empresa CNPJ Formatado Teste",
+                    "vat": False,
+                    "vat_formatted_cnpj": "A8.7HB.ZHB/0001-61",
+                    **self.base_address,
+                }
+            )
+        )
+        self.assertEqual(company.vat, "A87HBZHB000161")
